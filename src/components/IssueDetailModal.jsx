@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useCivic } from '../context/CivicContext';
+import { useAuth } from '../context/AuthContext';
 import BeforeAfterSlider from './BeforeAfterSlider';
 import {
   X,
@@ -24,6 +25,7 @@ import {
 
 export default function IssueDetailModal({ issue, onClose }) {
   const { upvoteIssue, addComment, rateResolution, role, addToast, setReceiptIssue } = useCivic();
+  const { profile } = useAuth();
 
   const [newComment, setNewComment] = useState('');
   const [citizenRating, setCitizenRating] = useState(5);
@@ -39,7 +41,10 @@ export default function IssueDetailModal({ issue, onClose }) {
   const handleSendComment = (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-    addComment(issue.id, newComment, role === 'admin' ? 'Municipal Coordinator' : 'Local Resident');
+    const authorName = profile?.fullName
+      ? (role === 'admin' ? `${profile.fullName} (Official)` : profile.fullName)
+      : (role === 'admin' ? 'Municipal Coordinator' : 'Local Resident');
+    addComment(issue.id, newComment, authorName);
     setNewComment('');
   };
 

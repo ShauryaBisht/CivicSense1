@@ -1,5 +1,6 @@
 import React from 'react';
 import { CivicProvider, useCivic } from './context/CivicContext';
+import { AuthProvider } from './context/AuthContext';
 import Header from './components/Header';
 import CitizenFeed from './components/CitizenFeed';
 import MapExplorer from './components/MapExplorer';
@@ -9,6 +10,7 @@ import ReportWizardModal from './components/ReportWizardModal';
 import IssueDetailModal from './components/IssueDetailModal';
 import ReceiptModal from './components/ReceiptModal';
 import CivicKarmaModal from './components/CivicKarmaModal';
+import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastContainer';
 import Footer from './components/Footer';
 import { WifiOff } from 'lucide-react';
@@ -82,6 +84,9 @@ function MainLayout() {
         onClose={() => setIsKarmaModalOpen(false)}
       />
 
+      {/* Supabase Authentication Modal (Sign In / Register / Reset Password) */}
+      <AuthModal />
+
       {/* Toast Alert Notifications */}
       <ToastContainer />
 
@@ -94,7 +99,9 @@ function MainLayout() {
 export default function App() {
   return (
     <CivicProvider>
-      <MainLayout />
+      <AuthProvider>
+        <MainLayout />
+      </AuthProvider>
     </CivicProvider>
   );
 }

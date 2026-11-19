@@ -1,0 +1,60 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Check if valid credentials have been provided
+export const isSupabaseConfigured = Boolean(
+  supabaseUrl &&
+  supabaseAnonKey &&
+  !supabaseUrl.includes('your-project-id') &&
+  !supabaseUrl.includes('placeholder') &&
+  !supabaseAnonKey.includes('your-anon-key') &&
+  supabaseUrl.startsWith('https://')
+);
+
+// Fallback dummy client to prevent runtime crashes if env vars are not yet configured
+const dummyClient = {
+  auth: {
+    getSession: async () => ({ data: { session: null }, error: null }),
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    signUp: async () => ({
+      data: { user: null, session: null },
+      error: new Error('Supabase credentials not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
+    }),
+    signInWithPassword: async () => ({
+      data: { user: null, session: null },
+      error: new Error('Supabase credentials not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
+    }),
+    signInWithOtp: async () => ({
+      data: null,
+      error: new Error('Supabase credentials not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
+    }),
+    signOut: async () => ({ error: null }),
+    resetPasswordForEmail: async () => ({
+      data: null,
+      error: new Error('Supabase credentials not configured. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.')
+    }),
+    updateUser: async () => ({
+      data: { user: null },
+      error: new Error('Supabase credentials not configured.')
+    })
+  },
+  from: () => ({
+    select: () => Promise.resolve({ data: [], error: null }),
+    insert: () => Promise.resolve({ data: [], error: null }),
+    update: () => Promise.resolve({ data: [], error: null }),
+    delete: () => Promise.resolve({ data: [], error: null })
+  })
+};
+
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    })
+  : dummyClient;
+

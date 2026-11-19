@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useCivic } from '../context/CivicContext';
+import { useAuth } from '../context/AuthContext';
 import { DEPARTMENTS, CATEGORIES, URGENCIES, STATUSES } from '../data/mockIssues';
 import InteractiveMap from './InteractiveMap';
 import AdminManageDrawer from './AdminManageDrawer';
@@ -19,7 +20,9 @@ import {
   Users,
   Briefcase,
   Flame,
-  CheckSquare
+  CheckSquare,
+  ShieldCheck,
+  AlertCircle
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -31,6 +34,8 @@ export default function AdminDashboard() {
     setSelectedForManage,
     addToast
   } = useCivic();
+
+  const { profile, openLogin } = useAuth();
 
   const [adminView, setAdminView] = useState('kanban'); // 'kanban' | 'table' | 'map'
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
@@ -113,6 +118,30 @@ export default function AdminDashboard() {
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Manage incoming citizen grievances, assign maintenance crews, update ETAs, and audit resolution proofs.
             </p>
+
+            {profile?.role === 'admin' ? (
+              <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 text-xs text-indigo-800 dark:text-indigo-300">
+                <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                <span>
+                  Active Officer: <strong>{profile.fullName}</strong>
+                  {profile.department && ` • ${profile.department}`}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2.5 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 text-xs text-amber-800 dark:text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <span>Viewing console in preview mode. Sign in as a Municipal Official to link admin operations to your account.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={openLogin}
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-[11px] shrink-0 self-start sm:self-auto cursor-pointer"
+                >
+                  Sign In as Official
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <button

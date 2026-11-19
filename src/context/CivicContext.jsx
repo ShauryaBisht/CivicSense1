@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { INITIAL_ISSUES, INITIAL_NOTIFICATIONS } from '../data/mockIssues';
+import {
+  fetchIssuesFromBackend,
+  createIssueInBackend,
+  updateIssueInBackend,
+  fetchNotificationsFromBackend,
+  markNotificationsReadInBackend,
+  seedIssuesToBackend,
+  subscribeToIssuesRealtime,
+  fromDbIssue
+} from '../services/civicBackend';
 
 const CivicContext = createContext();
 
@@ -36,6 +46,9 @@ export function CivicProvider({ children }) {
       return [];
     }
   });
+
+  // Backend connection status
+  const [isBackendConnected, setIsBackendConnected] = useState(false);
 
   // Civic Karma Profile State
   const [userKarma, setUserKarma] = useState(() => {
@@ -105,11 +118,111 @@ export function CivicProvider({ children }) {
     });
   };
 
+  // 1. Issues State (Initialize from localStorage or default dataset)
+  const [issues, setIssues] = useState(() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error('Failed to parse issues from localStorage', e);
+    }
+    return INITIAL_ISSUES;
+  });
+
+  // 2. Notifications State
+  const [notifications, setNotifications] = useState(() => {
+    try {
+      const stored = localStorage.getItem(NOTIFICATIONS_KEY);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (e) {
+      console.error('Failed to parse notifications', e);
+    }
+    return INITIAL_NOTIFICATIONS;
+  });
+
+  // 3. User Role: 'citizen' or 'admin'
+  const [role, setRole] = useState('citizen');
+
+  // 4. View Mode: 'feed' | 'map' | 'admin' | 'wards'
+  const [activeTab, setActiveTab] = useState('feed');
+
+  // 5. Selected issue for viewing details
+  const [selectedIssue, setSelectedIssue] = useState(null);
+
+  // 6. Selected issue for admin management drawer
+  const [selectedForManage, setSelectedForManage] = useState(null);
+
+  // 7. Report an Issue modal open/close
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+
+  // 8. Filters State
+  const [filter, setFilter] = useState({
+    search: '',
+    category: 'All',
+    urgency: 'All',
+    status: 'All',
+    sortBy: 'upvotes',
+    radiusKm: 15
+  });
+
+  // 9. Toast notifications system
+  const [toasts, setToasts] = useState([]);
+
+  // Fetch live backend data from Supabase on mount & setup Realtime listeners
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBackendData() {
+      try {
+        const backendIssues = await fetchIssuesFromBackend();
+        if (backendIssues && backendIssues.length > 0 && isMounted) {
+          setIssues(backendIssues);
+          setIsBackendConnected(true);
+        }
+
+        const backendNotifs = await fetchNotificationsFromBackend();
+        if (backendNotifs && backendNotifs.length > 0 && isMounted) {
+          setNotifications(backendNotifs);
+        }
+      } catch (err) {
+        console.warn('Backend load notice:', err);
+      }
+    }
+
+    loadBackendData();
+
+    // Subscribe to real-time changes from other users / officials
+    const unsubscribe = subscribeToIssuesRealtime((payload) => {
+      if (!isMounted) return;
+      if (payload.eventType === 'INSERT' && payload.new) {
+        const incoming = fromDbIssue(payload.new);
+        setIssues((prev) => {
+          if (prev.some((i) => i.id === incoming.id)) return prev;
+          return [incoming, ...prev];
+        });
+      } else if (payload.eventType === 'UPDATE' && payload.new) {
+        const updated = fromDbIssue(payload.new);
+        setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      } else if (payload.eventType === 'DELETE' && payload.old) {
+        setIssues((prev) => prev.filter((i) => i.id !== payload.old.id));
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe?.();
+    };
+  }, []);
+
   // Online / Offline Listeners & Queue Flush
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      // Flush offline queue if any
+      // Flush offline queue to municipal backend
       try {
         const stored = localStorage.getItem(OFFLINE_QUEUE_KEY);
         const queued = stored ? JSON.parse(stored) : [];
@@ -117,7 +230,8 @@ export function CivicProvider({ children }) {
           setIssues((prev) => [...queued, ...prev]);
           setOfflineQueue([]);
           localStorage.removeItem(OFFLINE_QUEUE_KEY);
-          addToast(`Synced ${queued.length} offline grievances to municipal dispatch!`, 'success');
+          queued.forEach((item) => createIssueInBackend(item));
+          addToast(`Synced ${queued.length} offline grievances to municipal dispatch backend!`, 'success');
         } else {
           addToast('Internet restored. Live dispatch feed active.', 'info');
         }
@@ -160,61 +274,7 @@ export function CivicProvider({ children }) {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // 1. Issues State
-  const [issues, setIssues] = useState(() => {
-    try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse issues from localStorage', e);
-    }
-    return INITIAL_ISSUES;
-  });
-
-  // 2. Notifications State
-  const [notifications, setNotifications] = useState(() => {
-    try {
-      const stored = localStorage.getItem(NOTIFICATIONS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
-      }
-    } catch (e) {
-      console.error('Failed to parse notifications', e);
-    }
-    return INITIAL_NOTIFICATIONS;
-  });
-
-  // 3. User Role: 'citizen' or 'admin'
-  const [role, setRole] = useState('citizen');
-
-  // 4. View Mode: 'feed' | 'map' | 'admin'
-  const [activeTab, setActiveTab] = useState('feed');
-
-  // 5. Selected issue for viewing details
-  const [selectedIssue, setSelectedIssue] = useState(null);
-
-  // 6. Selected issue for admin management drawer
-  const [selectedForManage, setSelectedForManage] = useState(null);
-
-  // 7. Report an Issue modal open/close
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-
-  // 8. Filters State
-  const [filter, setFilter] = useState({
-    search: '',
-    category: 'All',
-    urgency: 'All',
-    status: 'All',
-    sortBy: 'upvotes', // 'upvotes' | 'newest' | 'urgency'
-    radiusKm: 15
-  });
-
-  // 9. Toast notifications system
-  const [toasts, setToasts] = useState([]);
-
-  // Persist issues on change
+  // Persist issues to localStorage backup
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(issues));
@@ -282,7 +342,8 @@ export function CivicProvider({ children }) {
       reporter: {
         name: newIssueData.reporter?.name || (newIssueData.isAnonymous ? 'Anonymous Citizen' : 'Civic Member'),
         contact: newIssueData.reporter?.contact || '',
-        isAnonymous: !!newIssueData.isAnonymous
+        isAnonymous: !!newIssueData.isAnonymous,
+        userId: newIssueData.reporter?.userId || null
       },
       upvotes: 1,
       hasUpvoted: true,
@@ -314,6 +375,8 @@ export function CivicProvider({ children }) {
     } else {
       setIssues((prev) => [createdIssue, ...prev]);
       addToast(`Issue ${ticketId} successfully submitted! Tracking is now active.`, 'success');
+      // Sync to live Supabase backend
+      createIssueInBackend(createdIssue);
     }
 
     awardKarma('report', 50);
@@ -337,11 +400,16 @@ export function CivicProvider({ children }) {
               : `Removed endorsement from ${item.ticketId}.`,
             'info'
           );
-          return {
+
+          const updated = {
             ...item,
             upvotes: newVotes,
             hasUpvoted: isUpvoted
           };
+
+          // Update backend row
+          updateIssueInBackend(issueId, updated);
+          return updated;
         }
         return item;
       })
@@ -366,10 +434,12 @@ export function CivicProvider({ children }) {
     setIssues((prev) =>
       prev.map((item) => {
         if (item.id === issueId) {
-          return {
+          const updated = {
             ...item,
             comments: [...(item.comments || []), newComment]
           };
+          updateIssueInBackend(issueId, updated);
+          return updated;
         }
         return item;
       })
@@ -403,6 +473,7 @@ export function CivicProvider({ children }) {
             timeline: [...item.timeline, timelineEntry]
           };
 
+          updateIssueInBackend(issueId, updatedIssue);
           return updatedIssue;
         }
         return item;
@@ -429,18 +500,21 @@ export function CivicProvider({ children }) {
             role: 'Department Head'
           };
 
-          return {
+          const updated = {
             ...item,
             department: department || item.department,
             status: item.status === 'Submitted' ? 'Assigned' : item.status,
             assignedTeam: {
               name: teamName || 'Regional Maintenance Unit',
               leadWorker: leadWorker || 'Duty Lead',
-              contactNumber: contactNumber || '+1 (555) 019-2830'
+              contactNumber: contactNumber || '+91 98450 12345'
             },
             updatedAt: nowIso,
             timeline: [...item.timeline, timelineEntry]
           };
+
+          updateIssueInBackend(issueId, updated);
+          return updated;
         }
         return item;
       })
@@ -466,7 +540,7 @@ export function CivicProvider({ children }) {
             role: 'Field Team'
           };
 
-          return {
+          const updated = {
             ...item,
             status: 'Resolved',
             afterPhotoUrl: afterPhotoUrl || 'https://images.unsplash.com/photo-1528323273322-d81458248d40?auto=format&fit=crop&w=900&q=80',
@@ -474,6 +548,9 @@ export function CivicProvider({ children }) {
             updatedAt: nowIso,
             timeline: [...item.timeline, timelineEntry]
           };
+
+          updateIssueInBackend(issueId, updated);
+          return updated;
         }
         return item;
       })
@@ -526,20 +603,23 @@ export function CivicProvider({ children }) {
             addToast(`Thank you! Verified with a ${rating}-star rating. +30 Civic Karma earned!`, 'success');
           }
 
-          return {
+          const updated = {
             ...item,
             status: newStatus,
             feedback,
             updatedAt: nowIso,
             timeline: timelineEntries
           };
+
+          updateIssueInBackend(issueId, updated);
+          return updated;
         }
         return item;
       })
     );
   };
 
-  // Reset to default demo data
+  // Reset to default demo data and seed backend
   const resetToDefaultData = () => {
     localStorage.removeItem(LOCAL_STORAGE_KEY);
     localStorage.removeItem(NOTIFICATIONS_KEY);
@@ -547,11 +627,13 @@ export function CivicProvider({ children }) {
     setNotifications(INITIAL_NOTIFICATIONS);
     setSelectedIssue(null);
     setSelectedForManage(null);
-    addToast('Reset platform to initial realistic dataset.', 'info');
+    seedIssuesToBackend(INITIAL_ISSUES);
+    addToast('Reset platform to initial dataset and synchronized with backend.', 'info');
   };
 
   const markNotifsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    markNotificationsReadInBackend();
   };
 
   const unreadNotifCount = notifications.filter((n) => !n.read).length;
@@ -564,6 +646,7 @@ export function CivicProvider({ children }) {
         toggleTheme,
         isOnline,
         offlineQueue,
+        isBackendConnected,
         userKarma,
         awardKarma,
         receiptIssue,
