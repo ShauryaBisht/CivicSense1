@@ -41,7 +41,8 @@ export default function Header() {
     offlineQueue,
     userKarma,
     setIsKarmaModalOpen,
-    isBackendConnected
+    isBackendConnected,
+    addToast
   } = useCivic();
 
   const {
@@ -56,15 +57,29 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Synchronize context role with authenticated profile role if logged in
+  // Synchronize context role strictly with authenticated profile role from Supabase DB
   useEffect(() => {
-    if (profile?.role) {
-      setRole(profile.role === 'admin' ? 'admin' : 'citizen');
+    if (profile?.role === 'admin') {
+      setRole('admin');
+    } else {
+      setRole('citizen');
+      if (activeTab === 'admin') {
+        setActiveTab('feed');
+      }
     }
-  }, [profile?.role, setRole]);
+  }, [profile?.role, setRole, activeTab, setActiveTab]);
 
   // Count active (non-resolved) issues
   const activeReportsCount = issues.filter((i) => i.status !== 'Resolved').length;
+
+  const handleOpenReport = () => {
+    if (!user) {
+      addToast('Please sign in or create an account to report a grievance.', 'info');
+      openLogin();
+      return;
+    }
+    setIsReportModalOpen(true);
+  };
 
   return (
     <>
@@ -106,12 +121,9 @@ export default function Header() {
             {/* 2. Desktop Navigation Bar (Feed, Map View, Ward Index, Admin Console) */}
             <nav className="hidden md:flex items-center gap-1.5 bg-slate-100/90 dark:bg-slate-800/70 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
               <button
-                onClick={() => {
-                  setActiveTab('feed');
-                  if (role === 'admin' && !profile) setRole('citizen');
-                }}
+                onClick={() => setActiveTab('feed')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === 'feed' && role === 'citizen'
+                  activeTab === 'feed'
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
@@ -119,7 +131,7 @@ export default function Header() {
                 <ListFilter className="w-3.5 h-3.5" />
                 <span>Feed</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
-                  activeTab === 'feed' && role === 'citizen'
+                  activeTab === 'feed'
                     ? 'bg-blue-50 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300'
                     : 'bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}>
@@ -128,12 +140,9 @@ export default function Header() {
               </button>
 
               <button
-                onClick={() => {
-                  setActiveTab('map');
-                  if (role === 'admin' && !profile) setRole('citizen');
-                }}
+                onClick={() => setActiveTab('map')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === 'map' && role === 'citizen'
+                  activeTab === 'map'
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
@@ -143,12 +152,9 @@ export default function Header() {
               </button>
 
               <button
-                onClick={() => {
-                  setActiveTab('wards');
-                  if (role === 'admin' && !profile) setRole('citizen');
-                }}
+                onClick={() => setActiveTab('wards')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === 'wards' && role === 'citizen'
+                  activeTab === 'wards'
                     ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
                 }`}
@@ -157,12 +163,9 @@ export default function Header() {
                 <span>Ward Index</span>
               </button>
 
-              {(role === 'admin' || profile?.role === 'admin') && (
+              {profile?.role === 'admin' && (
                 <button
-                  onClick={() => {
-                    setActiveTab('admin');
-                    setRole('admin');
-                  }}
+                  onClick={() => setActiveTab('admin')}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'admin'
                       ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
@@ -190,44 +193,14 @@ export default function Header() {
 
               {/* Primary Report Issue CTA */}
               <button
-                onClick={() => setIsReportModalOpen(true)}
+                onClick={handleOpenReport}
                 className="hidden sm:inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs shadow-emerald-900/10 transition-all cursor-pointer"
               >
                 <PlusCircle className="w-4 h-4" />
                 <span>Report Issue</span>
               </button>
 
-              {/* Citizen / Admin Role Segmented Switcher (Visible if official or demo) */}
-              <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs font-medium">
-                <button
-                  onClick={() => {
-                    setRole('citizen');
-                    if (activeTab === 'admin') setActiveTab('feed');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                    role === 'citizen'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                  title="Switch to Citizen View"
-                >
-                  Citizen
-                </button>
-                <button
-                  onClick={() => {
-                    setRole('admin');
-                    setActiveTab('admin');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                    role === 'admin'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                  title="Switch to Municipal Official Mode"
-                >
-                  Official
-                </button>
-              </div>
+
 
               {/* Supabase Auth Component: Sign In Button or Profile Pill */}
               {!user ? (
@@ -374,14 +347,14 @@ export default function Header() {
             )}
 
             {/* Mobile Navigation Links */}
+            {/* Mobile Navigation Links */}
             <button
               onClick={() => {
                 setActiveTab('feed');
-                if (role === 'admin' && !profile) setRole('citizen');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
-                activeTab === 'feed' && role === 'citizen'
+                activeTab === 'feed'
                   ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
@@ -398,11 +371,10 @@ export default function Header() {
             <button
               onClick={() => {
                 setActiveTab('map');
-                if (role === 'admin' && !profile) setRole('citizen');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
-                activeTab === 'map' && role === 'citizen'
+                activeTab === 'map'
                   ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
@@ -414,11 +386,10 @@ export default function Header() {
             <button
               onClick={() => {
                 setActiveTab('wards');
-                if (role === 'admin' && !profile) setRole('citizen');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
-                activeTab === 'wards' && role === 'citizen'
+                activeTab === 'wards'
                   ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                   : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
@@ -427,10 +398,9 @@ export default function Header() {
               <span>Ward Performance Index</span>
             </button>
 
-            {(role === 'admin' || profile?.role === 'admin') && (
+            {profile?.role === 'admin' && (
               <button
                 onClick={() => {
-                  setRole('admin');
                   setActiveTab('admin');
                   setMobileMenuOpen(false);
                 }}
@@ -447,43 +417,11 @@ export default function Header() {
 
             {/* Mobile Actions Section */}
             <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2.5">
-              {/* Role Toggle on Mobile */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
-                <span className="font-semibold text-slate-600 dark:text-slate-400">Portal Role</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      setRole('citizen');
-                      if (activeTab === 'admin') setActiveTab('feed');
-                    }}
-                    className={`px-3 py-1 rounded-lg font-bold text-xs ${
-                      role === 'citizen'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    Citizen
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRole('admin');
-                      setActiveTab('admin');
-                    }}
-                    className={`px-3 py-1 rounded-lg font-bold text-xs ${
-                      role === 'admin'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    Official
-                  </button>
-                </div>
-              </div>
 
               <button
                 onClick={() => {
-                  setIsReportModalOpen(true);
                   setMobileMenuOpen(false);
+                  handleOpenReport();
                 }}
                 className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-xs cursor-pointer"
               >

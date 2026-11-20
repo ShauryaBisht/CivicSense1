@@ -31,31 +31,43 @@ export function toDbIssue(issue) {
 
 // Convert Supabase database row back to frontend camelCase object
 export function fromDbIssue(row) {
-  if (!row) return null;
+  if (!row || !row.id || !row.title) return null;
+
+  // Sanitize broken legacy Unsplash URLs
+  let mediaUrl = row.media_url || row.mediaUrl || '';
+  if (mediaUrl.includes('photo-1541888946425-d0fbb1861593')) {
+    mediaUrl = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=900&q=80';
+  }
+
+  let beforeUrl = row.before_photo_url || row.beforePhotoUrl || mediaUrl;
+  if (beforeUrl.includes('photo-1541888946425-d0fbb1861593')) {
+    beforeUrl = 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=900&q=80';
+  }
+
   return {
     id: row.id,
     ticketId: row.ticket_id || row.ticketId,
     title: row.title,
-    description: row.description,
-    category: row.category,
-    urgency: row.urgency,
-    status: row.status,
+    description: row.description || '',
+    category: row.category || 'Infrastructure',
+    urgency: row.urgency || 'Medium',
+    status: row.status || 'Submitted',
     location: row.location || {},
-    mediaUrl: row.media_url || row.mediaUrl,
-    beforePhotoUrl: row.before_photo_url || row.beforePhotoUrl || row.media_url,
+    mediaUrl,
+    beforePhotoUrl: beforeUrl,
     afterPhotoUrl: row.after_photo_url || row.afterPhotoUrl || '',
-    department: row.department,
+    department: row.department || 'BBMP Road Infrastructure',
     assignedTeam: row.assigned_team || row.assignedTeam,
-    eta: row.eta,
-    upvotes: row.upvotes || 0,
+    eta: row.eta || 'Awaiting triage',
+    upvotes: typeof row.upvotes === 'number' ? row.upvotes : 0,
     hasUpvoted: false,
     reporter: row.reporter || {},
     timeline: Array.isArray(row.timeline) ? row.timeline : [],
     comments: Array.isArray(row.comments) ? row.comments : [],
     triageMetadata: row.triage_metadata || row.triageMetadata || {},
     feedback: row.feedback,
-    reportedAt: row.reported_at || row.reportedAt,
-    updatedAt: row.updated_at || row.updatedAt
+    reportedAt: row.reported_at || row.reportedAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || new Date().toISOString()
   };
 }
 
@@ -103,7 +115,7 @@ export async function fetchIssuesFromBackend() {
     }
 
     if (data && data.length > 0) {
-      return data.map(fromDbIssue);
+      return data.map(fromDbIssue).filter(Boolean);
     }
 
     // If table exists but is empty, seed it with the realistic initial dataset!
@@ -240,6 +252,124 @@ export async function markNotificationsReadInBackend() {
   try {
     await supabase.from('notifications').update({ read: true }).neq('read', true);
   } catch (e) {}
+}
+
+/**
+ * Fetch dynamic app configuration from public.app_config table
+ * (categories, urgencies, statuses, departments, sample_preset_images)
+ */
+export async function fetchAppConfigFromBackend() {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase
+      .from('app_config')
+      .select('key, data');
+
+    if (error) {
+      console.warn('App config fetch notice:', error.message);
+      return null;
+    }
+
+    if (data && data.length > 0) {
+      const configMap = {};
+      data.forEach((row) => {
+        configMap[row.key] = row.data;
+      });
+      return configMap;
+    }
+    return null;
+  } catch (err) {
+    console.warn('App config fetch exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch Bengaluru Wards from public.wards table
+ */
+export async function fetchWardsFromBackend() {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase
+      .from('wards')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.warn('Wards fetch notice:', error.message);
+      return null;
+    }
+
+    if (data && data.length > 0) {
+      return data.map((w) => ({
+        id: w.id,
+        name: w.name,
+        zone: w.zone,
+        neighborhood: w.neighborhood,
+        slaHoursAvg: w.sla_hours_avg,
+        leadEngineer: w.lead_engineer,
+        wardOffice: w.ward_office
+      }));
+    }
+    return null;
+  } catch (err) {
+    console.warn('Wards fetch exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch Municipal Dispatch Teams from public.dispatch_teams table
+ */
+export async function fetchDispatchTeamsFromBackend() {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data, error } = await supabase
+      .from('dispatch_teams')
+      .select('*')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.warn('Dispatch teams fetch notice:', error.message);
+      return null;
+    }
+
+    if (data && data.length > 0) {
+      return data.map((t) => ({
+        id: t.id,
+        name: t.name,
+        lead: t.lead,
+        phone: t.phone,
+        dept: t.dept
+      }));
+    }
+    return null;
+  } catch (err) {
+    console.warn('Dispatch teams fetch exception:', err);
+    return null;
+  }
+}
+
+/**
+ * Update user karma points & badges in Supabase profiles table
+ */
+export async function updateUserKarmaInBackend(userId, karmaData) {
+  if (!isSupabaseConfigured || !userId) return;
+  try {
+    await supabase
+      .from('profiles')
+      .update({
+        karma_points: karmaData.points,
+        badges: karmaData.badges,
+        reports_count: karmaData.reportsCount,
+        endorsements_count: karmaData.endorsementsCount,
+        verifications_count: karmaData.verificationsCount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+  } catch (e) {
+    console.warn('Karma update exception:', e);
+  }
 }
 
 /**

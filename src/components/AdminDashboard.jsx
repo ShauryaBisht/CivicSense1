@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useCivic } from '../context/CivicContext';
 import { useAuth } from '../context/AuthContext';
-import { DEPARTMENTS, CATEGORIES, URGENCIES, STATUSES } from '../data/mockIssues';
 import InteractiveMap from './InteractiveMap';
 import AdminManageDrawer from './AdminManageDrawer';
 import {
@@ -32,7 +31,11 @@ export default function AdminDashboard() {
     setSelectedIssue,
     selectedForManage,
     setSelectedForManage,
-    addToast
+    addToast,
+    departments,
+    statuses,
+    categories,
+    urgencies
   } = useCivic();
 
   const { profile, openLogin } = useAuth();
@@ -91,7 +94,7 @@ export default function AdminDashboard() {
 
   // Department Workload counts
   const deptWorkload = useMemo(() => {
-    return DEPARTMENTS.map((dept) => {
+    return (departments || []).map((dept) => {
       const deptIssues = issues.filter((i) => i.department === dept);
       const active = deptIssues.filter((i) => i.status !== 'Resolved').length;
       return {
@@ -255,7 +258,7 @@ export default function AdminDashboard() {
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
           >
             <option value="All">All Departments</option>
-            {DEPARTMENTS.map((d) => (
+            {(departments || []).map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
@@ -302,7 +305,7 @@ export default function AdminDashboard() {
       {/* VIEW 1: KANBAN BOARD */}
       {adminView === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
-          {STATUSES.map((statusCol) => {
+          {(statuses || []).map((statusCol) => {
             const colIssues = displayedIssues.filter((i) => i.status === statusCol);
 
             return (
@@ -441,7 +444,7 @@ export default function AdminDashboard() {
                         onChange={(e) => updateIssueStatus(issue.id, e.target.value, `Status updated from table view to ${e.target.value}`)}
                         className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-medium cursor-pointer"
                       >
-                        {STATUSES.map((s) => (
+                        {(statuses || []).map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>

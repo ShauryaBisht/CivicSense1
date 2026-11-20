@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 
 export default function WardLeaderboard() {
-  const { issues, setActiveTab, setFilter } = useCivic();
+  const { issues, setActiveTab, setFilter, wardsConfig } = useCivic();
   const [selectedMetric, setSelectedMetric] = useState('rate'); // 'rate' | 'turnaround' | 'satisfaction'
 
   // Standard Bengaluru Ward Configurations
@@ -90,7 +90,8 @@ export default function WardLeaderboard() {
 
   // Compute live statistics for each ward based on current issues state
   const wardStats = useMemo(() => {
-    return WARDS_CONFIG.map((cfg) => {
+    const list = wardsConfig && wardsConfig.length > 0 ? wardsConfig : WARDS_CONFIG;
+    return list.map((cfg) => {
       // Match issues that mention this neighborhood
       const matchedIssues = issues.filter((i) => {
         const text = `${i.location?.neighborhood || ''} ${i.location?.address || ''} ${i.title}`.toLowerCase();

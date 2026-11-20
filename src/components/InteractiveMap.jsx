@@ -187,7 +187,7 @@ export default function InteractiveMap({
           ${
             issue.mediaUrl
               ? `<div style="width: 100%; height: 96px; margin-bottom: 8px; border-radius: 6px; overflow: hidden; background: #334155;">
-                   <img src="${issue.mediaUrl}" alt="${issue.title}" style="width: 100%; height: 100%; object-fit: cover;" />
+                   <img src="${issue.mediaUrl}" alt="${issue.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=400&q=80';" />
                  </div>`
               : ''
           }

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useCivic } from '../context/CivicContext';
-import { CATEGORIES, URGENCIES, STATUSES } from '../data/mockIssues';
+import { useAuth } from '../context/AuthContext';
 import InteractiveMap from './InteractiveMap';
 import {
   Search,
@@ -20,8 +20,23 @@ export default function MapExplorer() {
   const {
     issues,
     setSelectedIssue,
-    setIsReportModalOpen
+    setIsReportModalOpen,
+    categories,
+    urgencies,
+    statuses,
+    addToast
   } = useCivic();
+
+  const { user, openLogin } = useAuth();
+
+  const handleOpenReport = () => {
+    if (!user) {
+      addToast('Please sign in or create an account to report a grievance.', 'info');
+      openLogin();
+      return;
+    }
+    setIsReportModalOpen(true);
+  };
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedUrgency, setSelectedUrgency] = useState('All');
@@ -114,7 +129,7 @@ export default function MapExplorer() {
                 className="appearance-none text-xs font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
               >
                 <option value="All">All Categories</option>
-                {CATEGORIES.map((c) => (
+                {(categories || []).map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -129,7 +144,7 @@ export default function MapExplorer() {
                 className="appearance-none text-xs font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
               >
                 <option value="All">All Priorities</option>
-                {URGENCIES.map((u) => (
+                {(urgencies || []).map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
@@ -144,7 +159,7 @@ export default function MapExplorer() {
                 className="appearance-none text-xs font-semibold pl-3 pr-8 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
               >
                 <option value="All">All Statuses</option>
-                {STATUSES.map((s) => (
+                {(statuses || []).map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -164,7 +179,7 @@ export default function MapExplorer() {
 
             {/* Report Button */}
             <button
-              onClick={() => setIsReportModalOpen(true)}
+              onClick={handleOpenReport}
               className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-xs shadow-emerald-950/20 transition-all whitespace-nowrap cursor-pointer"
             >
               <PlusCircle className="w-4 h-4" />
@@ -255,6 +270,10 @@ export default function MapExplorer() {
                           src={issue.mediaUrl}
                           alt=""
                           className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200 dark:border-slate-700 bg-slate-200 dark:bg-slate-800"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=400&q=80';
+                          }}
                         />
                       )}
                       <div className="min-w-0 flex-1">

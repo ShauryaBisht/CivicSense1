@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useCivic } from '../context/CivicContext';
-import { CATEGORIES, URGENCIES, STATUSES } from '../data/mockIssues';
+import { useAuth } from '../context/AuthContext';
 import InteractiveMap from './InteractiveMap';
 import {
   Search,
@@ -35,8 +35,23 @@ export default function CitizenFeed() {
     setFilter,
     setSelectedIssue,
     upvoteIssue,
-    setIsReportModalOpen
+    setIsReportModalOpen,
+    categories,
+    urgencies,
+    statuses,
+    addToast
   } = useCivic();
+
+  const { user, openLogin } = useAuth();
+
+  const handleOpenReport = () => {
+    if (!user) {
+      addToast('Please sign in or create an account to report a grievance.', 'info');
+      openLogin();
+      return;
+    }
+    setIsReportModalOpen(true);
+  };
 
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'map' | 'split'
   const [activeChip, setActiveChip] = useState('all');
@@ -44,16 +59,21 @@ export default function CitizenFeed() {
   // Filter and sort issues based on user selection
   const filteredIssues = useMemo(() => {
     return issues.filter((issue) => {
+      // Guard against invalid or blank issues
+      if (!issue || !issue.id || !issue.title || !issue.ticketId) {
+        return false;
+      }
+
       // 1. Text Search
       if (filter.search.trim()) {
         const query = filter.search.toLowerCase();
-        const matchesTitle = issue.title.toLowerCase().includes(query);
-        const matchesDesc = issue.description.toLowerCase().includes(query);
-        const matchesTicket = issue.ticketId.toLowerCase().includes(query);
+        const matchesTitle = (issue.title || '').toLowerCase().includes(query);
+        const matchesDesc = (issue.description || '').toLowerCase().includes(query);
+        const matchesTicket = (issue.ticketId || '').toLowerCase().includes(query);
         const matchesLoc = (
-          (issue.location.address || '') +
+          (issue.location?.address || '') +
           ' ' +
-          (issue.location.neighborhood || '')
+          (issue.location?.neighborhood || '')
         )
           .toLowerCase()
           .includes(query);
@@ -189,7 +209,7 @@ export default function CitizenFeed() {
 
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
             <button
-              onClick={() => setIsReportModalOpen(true)}
+              onClick={handleOpenReport}
               className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white font-bold text-xs sm:text-sm px-5 py-3 rounded-xl shadow-sm shadow-emerald-950/20 transition-all cursor-pointer whitespace-nowrap"
             >
               <PlusCircle className="w-4 h-4" />
@@ -394,7 +414,7 @@ export default function CitizenFeed() {
                 className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
               >
                 <option value="All">All Categories</option>
-                {CATEGORIES.map((c) => (
+                {(categories || []).map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
@@ -409,7 +429,7 @@ export default function CitizenFeed() {
                 className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
               >
                 <option value="All">All Priorities</option>
-                {URGENCIES.map((u) => (
+                {(urgencies || []).map((u) => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
@@ -424,7 +444,7 @@ export default function CitizenFeed() {
                 className="appearance-none pl-3 pr-8 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 transition-all cursor-pointer"
               >
                 <option value="All">All Statuses</option>
-                {STATUSES.map((s) => (
+                {(statuses || []).map((s) => (
                   <option key={s} value={s}>{s}</option>
                 ))}
               </select>
@@ -578,9 +598,14 @@ export default function CitizenFeed() {
 
 // Subcomponent: Individual Grievance Card
 function IssueCard({ issue, onSelect, onUpvote, formatDate }) {
+  if (!issue || !issue.title || !issue.ticketId) return null;
+
   const isEmergency = issue.urgency === 'Emergency';
   const isHigh = issue.urgency === 'High';
   const isResolved = issue.status === 'Resolved';
+
+  const FALLBACK_PHOTO = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=900&q=80';
+  const displayPhoto = issue.mediaUrl || FALLBACK_PHOTO;
 
   // Category specific tint styling
   const getCategoryBadge = (category) => {
@@ -662,30 +687,32 @@ function IssueCard({ issue, onSelect, onUpvote, formatDate }) {
           </div>
         </div>
 
-        {/* Thumbnail Image */}
-        {issue.mediaUrl && (
-          <div className="relative aspect-video bg-slate-100 dark:bg-slate-900 overflow-hidden border-b border-slate-100 dark:border-slate-700/60">
-            <img
-              src={issue.mediaUrl}
-              alt={issue.title}
-              className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
-              loading="lazy"
-            />
-            {/* Subtle Gradient Shadow for text readability */}
-            <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent pointer-events-none" />
+        {/* Thumbnail Image with automatic fallback */}
+        <div className="relative aspect-video bg-slate-100 dark:bg-slate-900 overflow-hidden border-b border-slate-100 dark:border-slate-700/60">
+          <img
+            src={displayPhoto}
+            alt={issue.title}
+            className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = FALLBACK_PHOTO;
+            }}
+          />
+          {/* Subtle Gradient Shadow for text readability */}
+          <div className="absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-slate-950/80 via-slate-950/40 to-transparent pointer-events-none" />
 
-            {isResolved && (
-              <div className="absolute top-2.5 right-2.5 bg-emerald-600/95 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-xs flex items-center gap-1">
-                <CheckCircle className="w-3 h-3" />
-                <span>Verified Fixed</span>
-              </div>
-            )}
-            <div className="absolute bottom-2.5 left-3 text-white text-[11px] font-semibold flex items-center gap-1.5 truncate max-w-[90%] drop-shadow-sm">
-              <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-              <span className="truncate">{issue.location.neighborhood || issue.location.address}</span>
+          {isResolved && (
+            <div className="absolute top-2.5 right-2.5 bg-emerald-600/95 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg shadow-sm backdrop-blur-xs flex items-center gap-1">
+              <CheckCircle className="w-3 h-3" />
+              <span>Verified Fixed</span>
             </div>
+          )}
+          <div className="absolute bottom-2.5 left-3 text-white text-[11px] font-semibold flex items-center gap-1.5 truncate max-w-[90%] drop-shadow-sm">
+            <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+            <span className="truncate">{issue.location?.neighborhood || issue.location?.address || 'Bengaluru'}</span>
           </div>
-        )}
+        </div>
 
         {/* Issue Content Body */}
         <div className="p-4 space-y-2.5">

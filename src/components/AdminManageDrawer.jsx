@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useCivic } from '../context/CivicContext';
-import { DEPARTMENTS, STATUSES, SAMPLE_PRESET_IMAGES } from '../data/mockIssues';
 import {
   X,
   CheckCircle,
@@ -19,7 +18,11 @@ export default function AdminManageDrawer({ issue, onClose }) {
     updateIssueStatus,
     reassignIssue,
     submitProofOfWork,
-    addToast
+    addToast,
+    departments,
+    statuses,
+    sampleImages,
+    dispatchTeams
   } = useCivic();
 
   if (!issue) return null;
@@ -28,16 +31,16 @@ export default function AdminManageDrawer({ issue, onClose }) {
   const [currentStatus, setCurrentStatus] = useState(issue.status);
   const [officialNote, setOfficialNote] = useState('');
   const [eta, setEta] = useState(issue.eta || 'Within 24 Hours');
-  const [selectedDept, setSelectedDept] = useState(issue.department || DEPARTMENTS[0]);
+  const [selectedDept, setSelectedDept] = useState(issue.department || departments?.[0] || 'BBMP Road Infrastructure');
   const [teamName, setTeamName] = useState(issue.assignedTeam?.name || '');
   const [leadWorker, setLeadWorker] = useState(issue.assignedTeam?.leadWorker || '');
   const [contactNumber, setContactNumber] = useState(issue.assignedTeam?.contactNumber || '');
   const [proofPhotoUrl, setProofPhotoUrl] = useState(
-    issue.afterPhotoUrl || 'https://images.unsplash.com/photo-1528323273322-d81458248d40?auto=format&fit=crop&w=800&q=80'
+    issue.afterPhotoUrl || sampleImages?.[0]?.url || 'https://images.unsplash.com/photo-1528323273322-d81458248d40?auto=format&fit=crop&w=800&q=80'
   );
 
-  // Quick preset teams for easy demoing in Bengaluru
-  const TEAM_PRESETS = [
+  // Teams from database or local fallback
+  const teamList = dispatchTeams && dispatchTeams.length > 0 ? dispatchTeams : [
     { name: 'BBMP Ward 151 Road Repair Crew', lead: 'AEE Suresh Gowda', phone: '+91 98450 49921', dept: 'BBMP Road Infrastructure' },
     { name: 'BBMP SWM Auto Tipper & Sanitation Squad', lead: 'Inspector Ravi Shankar', phone: '+91 94480 71200', dept: 'BBMP Solid Waste Management (SWM)' },
     { name: 'BWSSB Cauvery Pipe & Jetting Unit', lead: 'Engineer Ramesh Kumar', phone: '+91 99001 38819', dept: 'BWSSB (Water Supply & Sewerage)' },
@@ -126,7 +129,7 @@ export default function AdminManageDrawer({ issue, onClose }) {
               onChange={(e) => setCurrentStatus(e.target.value)}
               className="w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs font-semibold focus:ring-2 focus:ring-blue-500/30 focus:outline-none cursor-pointer"
             >
-              {STATUSES.map((s) => (
+              {(statuses || []).map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -140,7 +143,7 @@ export default function AdminManageDrawer({ issue, onClose }) {
               onChange={(e) => setSelectedDept(e.target.value)}
               className="w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs focus:ring-2 focus:ring-blue-500/30 focus:outline-none cursor-pointer"
             >
-              {DEPARTMENTS.map((d) => (
+              {(departments || []).map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
@@ -150,7 +153,7 @@ export default function AdminManageDrawer({ issue, onClose }) {
           <div className="space-y-1.5 pt-1">
             <span className="font-semibold text-slate-700 dark:text-slate-300">Quick Ward Team Presets:</span>
             <div className="grid grid-cols-2 gap-1.5">
-              {TEAM_PRESETS.map((p, idx) => (
+              {teamList.map((p, idx) => (
                 <button
                   key={idx}
                   type="button"

@@ -42,7 +42,9 @@ export default function AuthModal() {
     isConfigured
   } = useAuth();
 
-  const { addToast } = useCivic();
+  const { addToast, departments } = useCivic();
+
+  const deptList = departments && departments.length > 0 ? departments : MUNICIPAL_DEPARTMENTS;
 
   // Form states
   const [email, setEmail] = useState('');
@@ -50,7 +52,7 @@ export default function AuthModal() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('citizen'); // 'citizen' | 'admin'
-  const [department, setDepartment] = useState(MUNICIPAL_DEPARTMENTS[0]);
+  const [department, setDepartment] = useState(deptList[0]);
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -361,6 +363,53 @@ export default function AuthModal() {
                   {useMagicLink ? 'Sign in with Password instead' : 'Sign in with Magic Link instead'}
                 </button>
               </div>
+
+              {/* Instant 1-Click Demo Logins */}
+              <div className="pt-3.5 border-t border-slate-200/80 dark:border-slate-800">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    One-Click Demo Mode
+                  </span>
+                  <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded font-mono">
+                    Instant Access
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loginAsDemo('citizen');
+                      addToast('Logged in as demo citizen (Aarav Sharma)', 'success');
+                    }}
+                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700/80 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                      <User className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Demo Citizen</span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 block mt-0.5 leading-tight">
+                      Aarav Sharma (Resident)
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      loginAsDemo('admin');
+                      addToast('Logged in as BBMP Chief Officer (Admin)', 'success');
+                    }}
+                    className="p-2.5 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 hover:border-indigo-500 hover:bg-indigo-50/80 dark:hover:bg-indigo-950/40 text-left transition-all cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 dark:text-indigo-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-200">
+                      <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>Demo Admin</span>
+                    </div>
+                    <span className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 block mt-0.5 leading-tight">
+                      Kavitha R. (Chief Officer)
+                    </span>
+                  </button>
+                </div>
+              </div>
             </form>
           )}
 
@@ -440,7 +489,7 @@ export default function AuthModal() {
                       onChange={(e) => setDepartment(e.target.value)}
                       className="w-full pl-9 pr-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
                     >
-                      {MUNICIPAL_DEPARTMENTS.map((dept) => (
+                      {deptList.map((dept) => (
                         <option key={dept} value={dept}>
                           {dept}
                         </option>
