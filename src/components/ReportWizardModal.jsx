@@ -3,7 +3,6 @@ import { useCivic } from '../context/CivicContext';
 import { useAuth } from '../context/AuthContext';
 import { analyzeIssueContent } from '../utils/triageEngine';
 import { findNearbySimilarIssues } from '../utils/geoUtils';
-import { CATEGORIES, URGENCIES, SAMPLE_PRESET_IMAGES } from '../data/mockIssues';
 import InteractiveMap from './InteractiveMap';
 import {
   X,
@@ -25,8 +24,18 @@ import {
 } from 'lucide-react';
 
 export default function ReportWizardModal({ isOpen, onClose }) {
-  const { addIssue, setSelectedIssue, issues, upvoteIssue, setReceiptIssue, addToast } = useCivic();
-  const { user, profile } = useAuth();
+  const {
+    addIssue,
+    setSelectedIssue,
+    issues,
+    upvoteIssue,
+    setReceiptIssue,
+    addToast,
+    sampleImages,
+    categories,
+    urgencies
+  } = useCivic();
+  const { user, profile, openLogin } = useAuth();
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +43,7 @@ export default function ReportWizardModal({ isOpen, onClose }) {
   const [dismissedDuplicateId, setDismissedDuplicateId] = useState(null);
 
   // Form State
-  const [mediaUrl, setMediaUrl] = useState(SAMPLE_PRESET_IMAGES[0]?.url || '');
+  const [mediaUrl, setMediaUrl] = useState(sampleImages?.[0]?.url || '');
   const [imageFileName, setImageFileName] = useState('');
   const [location, setLocation] = useState({
     lat: 12.9352,
@@ -76,7 +85,7 @@ export default function ReportWizardModal({ isOpen, onClose }) {
       setUrgency('Medium');
       setTriageNote(null);
       setSubmittedIssue(null);
-      setMediaUrl(SAMPLE_PRESET_IMAGES[0]?.url || '');
+      setMediaUrl(sampleImages?.[0]?.url || '');
       setImageFileName('');
       setReporterName(profile?.fullName || '');
       setReporterContact(profile?.phone || profile?.email || '');
@@ -84,6 +93,41 @@ export default function ReportWizardModal({ isOpen, onClose }) {
   }, [isOpen, profile]);
 
   if (!isOpen) return null;
+
+  if (!user) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs">
+        <div className="w-full max-w-md bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-6 text-center">
+          <div className="w-14 h-14 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 mx-auto flex items-center justify-center mb-4">
+            <User className="w-7 h-7" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+            Authentication Required
+          </h3>
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">
+            You must be signed in with your civic account to report grievances, upload geo-tagged photos, and track resolution progress.
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="flex-1 py-2.5 px-4 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                openLogin();
+              }}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-md shadow-blue-500/20 cursor-pointer"
+            >
+              Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Handle local image file upload preview
   const handleFileUpload = (e) => {
@@ -117,6 +161,11 @@ export default function ReportWizardModal({ isOpen, onClose }) {
   // Handle final submission
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!user) {
+      addToast('You must be signed in to submit an issue.', 'error');
+      openLogin();
+      return;
+    }
     setIsSubmitting(true);
 
     setTimeout(() => {
@@ -252,7 +301,7 @@ export default function ReportWizardModal({ isOpen, onClose }) {
                   Or select sample test incident:
                 </span>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {SAMPLE_PRESET_IMAGES.map((preset, idx) => (
+                  {(sampleImages || []).map((preset, idx) => (
                     <button
                       key={idx}
                       type="button"
@@ -464,7 +513,7 @@ export default function ReportWizardModal({ isOpen, onClose }) {
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:outline-none cursor-pointer"
                   >
-                    {CATEGORIES.map((c) => (
+                    {(categories || []).map((c) => (
                       <option key={c} value={c}>{c}</option>
                     ))}
                   </select>
@@ -479,7 +528,7 @@ export default function ReportWizardModal({ isOpen, onClose }) {
                     onChange={(e) => setUrgency(e.target.value)}
                     className="w-full border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-blue-500/30 focus:outline-none cursor-pointer"
                   >
-                    {URGENCIES.map((u) => (
+                    {(urgencies || []).map((u) => (
                       <option key={u} value={u}>{u}</option>
                     ))}
                   </select>

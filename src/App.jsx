@@ -56,6 +56,7 @@ function MainLayout() {
         {activeTab === 'map'   && <MapExplorer />}
         {activeTab === 'wards' && <WardLeaderboard />}
         {activeTab === 'admin' && <AdminDashboard />}
+        {!['home', 'feed', 'map', 'wards', 'admin'].includes(activeTab) && <HomePage />}
       </main>
 
       <ReportWizardModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />

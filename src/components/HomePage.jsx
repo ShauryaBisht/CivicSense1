@@ -70,18 +70,20 @@ function CitizenHome() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   // My issues: match by userId (real accounts) or by name (demo citizen fallback)
-  const myIssues = issues.filter(i =>
-    (user?.id && i.reporter?.userId === user.id) ||
-    (profile?.fullName && i.reporter?.name === profile.fullName)
+  const myIssues = (issues || []).filter(i =>
+    i && (
+      (user?.id && i.reporter?.userId === user.id) ||
+      (profile?.fullName && i.reporter?.name === profile.fullName)
+    )
   );
 
-  const myActive   = myIssues.filter(i => i.status !== 'Resolved').length;
-  const myResolved = myIssues.filter(i => i.status === 'Resolved').length;
+  const myActive   = myIssues.filter(i => i && i.status !== 'Resolved').length;
+  const myResolved = myIssues.filter(i => i && i.status === 'Resolved').length;
 
   // City-wide trending (top 3 by upvotes, unresolved) — visible to everyone, it's public
-  const trending = [...issues]
-    .filter(i => i.status !== 'Resolved')
-    .sort((a, b) => b.upvotes - a.upvotes)
+  const trending = [...(issues || [])]
+    .filter(i => i && i.status !== 'Resolved')
+    .sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))
     .slice(0, 3);
 
   const urgencyColor = {
@@ -364,16 +366,17 @@ function AdminHome() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const total      = issues.length;
-  const pending    = issues.filter(i => i.status === 'Pending').length;
-  const inProgress = issues.filter(i => i.status === 'In Progress').length;
-  const resolved   = issues.filter(i => i.status === 'Resolved').length;
-  const emergency  = issues.filter(i => (i.urgency === 'Emergency' || i.urgency === 'High') && i.status !== 'Resolved').length;
+  const total      = (issues || []).length;
+  const pending    = (issues || []).filter(i => i && i.status === 'Pending').length;
+  const inProgress = (issues || []).filter(i => i && i.status === 'In Progress').length;
+  const resolved   = (issues || []).filter(i => i && i.status === 'Resolved').length;
+  const emergency  = (issues || []).filter(i => i && (i.urgency === 'Emergency' || i.urgency === 'High') && i.status !== 'Resolved').length;
   const resRate    = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
   // Department breakdown
   const deptMap = {};
-  issues.forEach(i => {
+  (issues || []).forEach(i => {
+    if (!i) return;
     const dept = i.department || 'Other';
     deptMap[dept] = (deptMap[dept] || 0) + 1;
   });
@@ -382,8 +385,8 @@ function AdminHome() {
     .slice(0, 5);
 
   // Recent unresolved issues
-  const recentOpen = [...issues]
-    .filter(i => i.status !== 'Resolved')
+  const recentOpen = [...(issues || [])]
+    .filter(i => i && i.status !== 'Resolved')
     .sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt))
     .slice(0, 5);
 

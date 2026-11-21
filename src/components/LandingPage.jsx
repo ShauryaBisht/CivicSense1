@@ -100,6 +100,11 @@ export default function LandingPage() {
               className="px-4 py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors cursor-pointer">
               Sign In
             </button>
+            <button
+              onClick={() => { loginAsDemo('citizen'); addToast('Welcome to CivicFix Bengaluru!', 'info'); }}
+              className="hidden sm:inline-flex px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 transition-colors cursor-pointer">
+              Open Demo App
+            </button>
             <button onClick={openRegister}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold rounded-xl transition-colors cursor-pointer">
               Get Started

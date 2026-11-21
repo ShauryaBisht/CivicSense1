@@ -1,5 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { INITIAL_ISSUES, INITIAL_NOTIFICATIONS } from '../data/mockIssues';
+import {
+  INITIAL_ISSUES,
+  INITIAL_NOTIFICATIONS,
+  CATEGORIES as DEFAULT_CATEGORIES,
+  URGENCIES as DEFAULT_URGENCIES,
+  STATUSES as DEFAULT_STATUSES,
+  DEPARTMENTS as DEFAULT_DEPARTMENTS,
+  SAMPLE_PRESET_IMAGES as DEFAULT_SAMPLE_IMAGES,
+  DEFAULT_WARDS,
+  DEFAULT_TEAMS
+} from '../data/mockIssues';
 import {
   fetchIssuesFromBackend,
   createIssueInBackend,
@@ -8,7 +18,11 @@ import {
   markNotificationsReadInBackend,
   seedIssuesToBackend,
   subscribeToIssuesRealtime,
-  fromDbIssue
+  fromDbIssue,
+  fetchAppConfigFromBackend,
+  fetchWardsFromBackend,
+  fetchDispatchTeamsFromBackend,
+  updateUserKarmaInBackend
 } from '../services/civicBackend';
 
 const CivicContext = createContext();
@@ -17,6 +31,7 @@ const LOCAL_STORAGE_KEY = 'civicfix_issues_bengaluru_v2';
 const NOTIFICATIONS_KEY = 'civicfix_notifications_bengaluru_v1';
 const THEME_KEY = 'civicfix_theme_preference';
 const OFFLINE_QUEUE_KEY = 'civicfix_offline_queue_v1';
+const KARMA_KEY = 'civicfix_user_karma_v1';
 
 const DEPARTMENT_BY_CATEGORY = {
   'Infrastructure': 'BBMP Road Infrastructure',
@@ -58,6 +73,65 @@ export function CivicProvider({ children }) {
   // Backend connection status
   const [isBackendConnected, setIsBackendConnected] = useState(false);
 
+  // Civic Karma Profile State
+  const [userKarma, setUserKarma] = useState(() => {
+    try {
+      const stored = localStorage.getItem(KARMA_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+    return {
+      points: 135,
+      reportsCount: 2,
+      endorsementsCount: 7,
+      verificationsCount: 1,
+      badges: ['ward_watchdog', 'community_champion']
+    };
+  });
+
+  // Sync Karma to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(KARMA_KEY, JSON.stringify(userKarma));
+    } catch (e) {}
+  }, [userKarma]);
+
+  // Award Karma Points Helper
+  const awardKarma = (actionType, extraPoints = 0) => {
+    setUserKarma((prev) => {
+      let addPts = extraPoints;
+      let newReports = prev.reportsCount;
+      let newEndorsements = prev.endorsementsCount;
+      let newVerifications = prev.verificationsCount;
+
+      if (actionType === 'report') {
+        addPts = addPts || 50;
+        newReports += 1;
+      } else if (actionType === 'endorse') {
+        addPts = addPts || 10;
+        newEndorsements += 1;
+      } else if (actionType === 'verify') {
+        addPts = addPts || 30;
+        newVerifications += 1;
+      }
+
+      const newBadges = [...prev.badges];
+      if (newReports >= 2 && !newBadges.includes('ward_watchdog')) newBadges.push('ward_watchdog');
+      if (newEndorsements >= 5 && !newBadges.includes('community_champion')) newBadges.push('community_champion');
+      if (newVerifications >= 1 && !newBadges.includes('ground_auditor')) newBadges.push('ground_auditor');
+      if (newReports >= 5 && !newBadges.includes('civic_sentinel')) newBadges.push('civic_sentinel');
+
+      const nextKarma = {
+        points: prev.points + addPts,
+        reportsCount: newReports,
+        endorsementsCount: newEndorsements,
+        verificationsCount: newVerifications,
+        badges: newBadges
+      };
+
+      return nextKarma;
+    });
+  };
+
   // Modal States
   const [receiptIssue, setReceiptIssue] = useState(null);
   const [isKarmaModalOpen, setIsKarmaModalOpen] = useState(false);
@@ -69,16 +143,27 @@ export function CivicProvider({ children }) {
     } catch (e) {}
   }, [offlineQueue]);
 
-  // Backward compatibility no-op stubs
-  const userKarma = null;
-  const awardKarma = () => {};
-
   // 1. Issues State (Initialize from localStorage or default dataset)
   const [issues, setIssues] = useState(() => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sanitized = parsed.filter((i) => i && i.id && i.title && i.title.trim().length > 0);
+          if (sanitized.length > 0) {
+            return sanitized.map((i) => {
+              if (i.mediaUrl && i.mediaUrl.includes('photo-1541888946425-d0fbb1861593')) {
+                return {
+                  ...i,
+                  mediaUrl: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=900&q=80',
+                  beforePhotoUrl: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?auto=format&fit=crop&w=900&q=80'
+                };
+              }
+              return i;
+            });
+          }
+        }
       }
     } catch (e) {
       console.error('Failed to parse issues from localStorage', e);
@@ -124,7 +209,16 @@ export function CivicProvider({ children }) {
     radiusKm: 15
   });
 
-  // 9. Toast notifications system
+  // 9. Dynamic DB-driven Taxonomies & Configurations
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [urgencies, setUrgencies] = useState(DEFAULT_URGENCIES);
+  const [statuses, setStatuses] = useState(DEFAULT_STATUSES);
+  const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
+  const [sampleImages, setSampleImages] = useState(DEFAULT_SAMPLE_IMAGES);
+  const [wardsConfig, setWardsConfig] = useState(DEFAULT_WARDS);
+  const [dispatchTeams, setDispatchTeams] = useState(DEFAULT_TEAMS);
+
+  // 10. Toast notifications system
   const [toasts, setToasts] = useState([]);
 
   // Fetch live backend data from Supabase on mount & setup Realtime listeners
@@ -133,15 +227,51 @@ export function CivicProvider({ children }) {
 
     async function loadBackendData() {
       try {
-        const backendIssues = await fetchIssuesFromBackend();
-        if (backendIssues && backendIssues.length > 0 && isMounted) {
-          setIssues(backendIssues);
-          setIsBackendConnected(true);
-        }
+        const [backendIssues, backendNotifs, appConfig, wards, teams] = await Promise.all([
+          fetchIssuesFromBackend(),
+          fetchNotificationsFromBackend(),
+          fetchAppConfigFromBackend(),
+          fetchWardsFromBackend(),
+          fetchDispatchTeamsFromBackend()
+        ]);
 
-        const backendNotifs = await fetchNotificationsFromBackend();
-        if (backendNotifs && backendNotifs.length > 0 && isMounted) {
-          setNotifications(backendNotifs);
+        if (isMounted) {
+          if (backendIssues && backendIssues.length > 0) {
+            setIssues(backendIssues);
+            setIsBackendConnected(true);
+          }
+
+          if (backendNotifs && backendNotifs.length > 0) {
+            setNotifications(backendNotifs);
+          }
+
+          if (appConfig) {
+            if (Array.isArray(appConfig.categories) && appConfig.categories.length > 0) {
+              setCategories(appConfig.categories);
+            }
+            if (Array.isArray(appConfig.urgencies) && appConfig.urgencies.length > 0) {
+              setUrgencies(appConfig.urgencies);
+            }
+            if (Array.isArray(appConfig.statuses) && appConfig.statuses.length > 0) {
+              setStatuses(appConfig.statuses);
+            }
+            if (Array.isArray(appConfig.departments) && appConfig.departments.length > 0) {
+              setDepartments(appConfig.departments);
+            }
+            if (Array.isArray(appConfig.sample_preset_images) && appConfig.sample_preset_images.length > 0) {
+              setSampleImages(appConfig.sample_preset_images);
+            }
+            setIsBackendConnected(true);
+          }
+
+          if (Array.isArray(wards) && wards.length > 0) {
+            setWardsConfig(wards);
+            setIsBackendConnected(true);
+          }
+
+          if (Array.isArray(teams) && teams.length > 0) {
+            setDispatchTeams(teams);
+          }
         }
       } catch (err) {
         console.warn('Backend load notice:', err);
@@ -647,6 +777,13 @@ export function CivicProvider({ children }) {
         notifications,
         unreadNotifCount,
         markNotifsRead,
+        categories,
+        urgencies,
+        statuses,
+        departments,
+        sampleImages,
+        wardsConfig,
+        dispatchTeams,
         role,
         setRole,
         activeTab,

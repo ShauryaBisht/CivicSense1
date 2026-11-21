@@ -44,8 +44,25 @@ export function AuthProvider({ children }) {
 
           if (mounted) {
             setSession(data.session);
-            setUser(data.session?.user || null);
-            setProfile(extractProfile(data.session?.user));
+            if (data.session?.user) {
+              setUser(data.session.user);
+              setProfile(extractProfile(data.session.user));
+            } else {
+              try {
+                const savedDemoUser = localStorage.getItem(DEMO_USER_KEY);
+                if (savedDemoUser) {
+                  const parsed = JSON.parse(savedDemoUser);
+                  setUser(parsed);
+                  setProfile(extractProfile(parsed));
+                } else {
+                  setUser(null);
+                  setProfile(null);
+                }
+              } catch (e) {
+                setUser(null);
+                setProfile(null);
+              }
+            }
           }
         } catch (err) {
           console.warn('Supabase getSession error:', err);
@@ -55,11 +72,32 @@ export function AuthProvider({ children }) {
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (_event, newSession) => {
+          async (event, newSession) => {
             if (!mounted) return;
             setSession(newSession);
-            setUser(newSession?.user || null);
-            setProfile(extractProfile(newSession?.user));
+            if (newSession?.user) {
+              setUser(newSession.user);
+              setProfile(extractProfile(newSession.user));
+            } else if (event === 'SIGNED_OUT') {
+              setUser(null);
+              setProfile(null);
+            } else {
+              // Retain active demo session if no cloud session present
+              try {
+                const savedDemoUser = localStorage.getItem(DEMO_USER_KEY);
+                if (savedDemoUser) {
+                  const parsed = JSON.parse(savedDemoUser);
+                  setUser(parsed);
+                  setProfile(extractProfile(parsed));
+                } else {
+                  setUser(null);
+                  setProfile(null);
+                }
+              } catch (e) {
+                setUser(null);
+                setProfile(null);
+              }
+            }
             setLoading(false);
           }
         );

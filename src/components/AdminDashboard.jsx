@@ -33,36 +33,50 @@ export default function AdminDashboard() {
     setSelectedIssue,
     selectedForManage,
     setSelectedForManage,
-    addToast
+    addToast,
+    departments,
+    statuses,
+    categories,
+    urgencies,
+    role,
+    setRole
   } = useCivic();
 
-  const { profile, openLogin } = useAuth();
+  const { profile, openLogin, loginAsDemo } = useAuth();
 
   const [adminView, setAdminView] = useState('kanban'); // 'kanban' | 'table' | 'map'
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Auth Guard — block access if not signed in as admin
+  // Auth Guard — strictly restrict to verified municipal officials
   if (!profile || profile.role !== 'admin') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
-        <div className="w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
-          <ShieldCheck className="w-8 h-8 text-indigo-500" />
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center border border-rose-200 dark:border-rose-800">
+          <ShieldAlert className="w-8 h-8 text-rose-500" />
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
-            Municipal Officials Only
+            Access Restricted: Municipal Officials Only
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mt-1">
-            Sign in with an authorised BBMP / government account to access the Admin Operations Console.
+            The Admin Operations Console is restricted to authorized BBMP municipal engineers, department heads, and dispatch officers.
           </p>
         </div>
-        <button
-          onClick={openLogin}
-          className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-xs cursor-pointer"
-        >
-          Sign In to Continue
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+          <button
+            onClick={() => setActiveTab('home')}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+          >
+            Back to Citizen Portal
+          </button>
+          <button
+            onClick={openLogin}
+            className="px-5 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-xs cursor-pointer"
+          >
+            Sign In with Official Account
+          </button>
+        </div>
       </div>
     );
   }
@@ -117,7 +131,7 @@ export default function AdminDashboard() {
 
   // Department Workload counts
   const deptWorkload = useMemo(() => {
-    return DEPARTMENTS.map((dept) => {
+    return (departments || []).map((dept) => {
       const deptIssues = issues.filter((i) => i.department === dept);
       const active = deptIssues.filter((i) => i.status !== 'Resolved').length;
       return {
@@ -281,7 +295,7 @@ export default function AdminDashboard() {
             className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500/30 cursor-pointer"
           >
             <option value="All">All Departments</option>
-            {DEPARTMENTS.map((d) => (
+            {(departments || []).map((d) => (
               <option key={d} value={d}>{d}</option>
             ))}
           </select>
@@ -328,7 +342,7 @@ export default function AdminDashboard() {
       {/* VIEW 1: KANBAN BOARD */}
       {adminView === 'kanban' && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3.5">
-          {STATUSES.map((statusCol) => {
+          {(statuses || []).map((statusCol) => {
             const colIssues = displayedIssues.filter((i) => i.status === statusCol);
 
             return (
@@ -476,7 +490,7 @@ export default function AdminDashboard() {
                         onChange={(e) => updateIssueStatus(issue.id, e.target.value, `Status updated from table view to ${e.target.value}`)}
                         className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-medium cursor-pointer"
                       >
-                        {STATUSES.map((s) => (
+                        {(statuses || []).map((s) => (
                           <option key={s} value={s}>{s}</option>
                         ))}
                       </select>

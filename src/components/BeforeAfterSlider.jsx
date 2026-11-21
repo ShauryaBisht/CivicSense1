@@ -7,9 +7,12 @@ export default function BeforeAfterSlider({ beforeUrl, afterUrl, title = "Issue 
   const [viewMode, setViewMode] = useState('slider'); // 'slider' | 'side-by-side'
   const containerRef = useRef(null);
 
-  const defaultBefore = beforeUrl || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80';
+  const FALLBACK_BEFORE = 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80';
+  const FALLBACK_AFTER = 'https://images.unsplash.com/photo-1528323273322-d81458248d40?auto=format&fit=crop&w=800&q=80';
+
+  const defaultBefore = beforeUrl || FALLBACK_BEFORE;
   const hasAfter = Boolean(afterUrl);
-  const defaultAfter = afterUrl || 'https://images.unsplash.com/photo-1528323273322-d81458248d40?auto=format&fit=crop&w=800&q=80';
+  const defaultAfter = afterUrl || FALLBACK_AFTER;
 
   const handleMove = useCallback((clientX) => {
     if (!containerRef.current) return;
@@ -55,6 +58,10 @@ export default function BeforeAfterSlider({ beforeUrl, afterUrl, title = "Issue 
             src={defaultBefore}
             alt="Reported Issue Evidence"
             className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = FALLBACK_BEFORE;
+            }}
           />
           <div className="absolute top-3 left-3 bg-rose-600/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-md shadow-sm backdrop-blur-xs">
             Reported Issue Photo
@@ -102,13 +109,29 @@ export default function BeforeAfterSlider({ beforeUrl, afterUrl, title = "Issue 
       {viewMode === 'side-by-side' ? (
         <div className="grid grid-cols-2 gap-2 sm:gap-3">
           <div className="relative rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden aspect-video bg-slate-100 dark:bg-slate-900">
-            <img src={defaultBefore} alt="Before" className="w-full h-full object-cover" />
+            <img
+              src={defaultBefore}
+              alt="Before"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = FALLBACK_BEFORE;
+              }}
+            />
             <div className="absolute top-2.5 left-2.5 bg-rose-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded backdrop-blur-xs">
               BEFORE (Reported)
             </div>
           </div>
           <div className="relative rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden aspect-video bg-slate-100 dark:bg-slate-900">
-            <img src={defaultAfter} alt="After" className="w-full h-full object-cover" />
+            <img
+              src={defaultAfter}
+              alt="After"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = FALLBACK_AFTER;
+              }}
+            />
             <div className="absolute top-2.5 right-2.5 bg-emerald-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 backdrop-blur-xs">
               <CheckCircle className="w-3 h-3" />
               <span>AFTER (Fixed)</span>
@@ -135,6 +158,10 @@ export default function BeforeAfterSlider({ beforeUrl, afterUrl, title = "Issue 
             src={defaultAfter}
             alt="After Resolution"
             className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = FALLBACK_AFTER;
+            }}
           />
 
           {/* "Before" Image clipped on top */}
@@ -146,6 +173,10 @@ export default function BeforeAfterSlider({ beforeUrl, afterUrl, title = "Issue 
               src={defaultBefore}
               alt="Before"
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = FALLBACK_BEFORE;
+              }}
             />
             <div className="absolute top-3 left-3 bg-rose-600/90 text-white text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-md shadow-sm backdrop-blur-xs">
               BEFORE (Reported)

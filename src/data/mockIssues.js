@@ -692,3 +692,76 @@ export const INITIAL_NOTIFICATIONS = [
     ticketId: "#CIVIC-8340"
   }
 ];
+
+export const DEFAULT_WARDS = [
+  {
+    id: 'ward-151',
+    name: 'Ward 151: Koramangala',
+    zone: 'South Zone',
+    neighborhood: 'Koramangala',
+    slaHoursAvg: 18,
+    leadEngineer: 'AEE Suresh Gowda',
+    wardOffice: '80 Feet Road, 5th Block'
+  },
+  {
+    id: 'ward-174',
+    name: 'Ward 174: HSR Layout',
+    zone: 'Bommanahalli Zone',
+    neighborhood: 'HSR Layout',
+    slaHoursAvg: 22,
+    leadEngineer: 'AEE Venkatesh Murthy',
+    wardOffice: '27th Main Road, Sector 1'
+  },
+  {
+    id: 'ward-134',
+    name: 'Ward 134: Jayanagar',
+    zone: 'South Zone',
+    neighborhood: 'Jayanagar',
+    slaHoursAvg: 16,
+    leadEngineer: 'AEE Ramesh Kumar',
+    wardOffice: '10th Main, 3rd Block'
+  },
+  {
+    id: 'ward-85',
+    name: 'Ward 85: Indiranagar',
+    zone: 'East Zone',
+    neighborhood: 'Indiranagar',
+    slaHoursAvg: 26,
+    leadEngineer: 'AEE Radhakrishna',
+    wardOffice: '100 Feet Road, HAL 2nd Stage'
+  },
+  {
+    id: 'ward-45',
+    name: 'Ward 45: Malleshwaram',
+    zone: 'West Zone',
+    neighborhood: 'Malleshwaram',
+    slaHoursAvg: 20,
+    leadEngineer: 'AEE S. Narayana',
+    wardOffice: 'Sampige Road, 8th Cross'
+  },
+  {
+    id: 'ward-83',
+    name: 'Ward 83: Whitefield / ITPL',
+    zone: 'Mahadevapura Zone',
+    neighborhood: 'Whitefield',
+    slaHoursAvg: 34,
+    leadEngineer: 'AEE Manjunath B.',
+    wardOffice: 'ITPL Main Road, Hope Farm'
+  },
+  {
+    id: 'ward-160',
+    name: 'Ward 160: Outer Ring Road',
+    zone: 'Mahadevapura Zone',
+    neighborhood: 'Outer Ring Road',
+    slaHoursAvg: 30,
+    leadEngineer: 'AEE Anand Rao',
+    wardOffice: 'Bellandur EcoSpace Junction'
+  }
+];
+
+export const DEFAULT_TEAMS = [
+  { id: 'team-bbmp-151', name: 'BBMP Ward 151 Road Repair Crew', lead: 'AEE Suresh Gowda', phone: '+91 98450 49921', dept: 'BBMP Road Infrastructure' },
+  { id: 'team-bbmp-swm', name: 'BBMP SWM Auto Tipper & Sanitation Squad', lead: 'Inspector Ravi Shankar', phone: '+91 94480 71200', dept: 'BBMP Solid Waste Management (SWM)' },
+  { id: 'team-bwssb-pipe', name: 'BWSSB Cauvery Pipe & Jetting Unit', lead: 'Engineer Ramesh Kumar', phone: '+91 99001 38819', dept: 'BWSSB (Water Supply & Sewerage)' },
+  { id: 'team-bescom-qrv', name: 'BESCOM Quick Response Vehicle (QRV)', lead: 'Lineman Manjunath B.', phone: '+91 98860 94432', dept: 'BESCOM (Electricity Supply & Streetlights)' }
+];
