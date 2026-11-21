@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCivic } from '../context/CivicContext';
+import { useAuth } from '../context/AuthContext';
 import { analyzeIssueContent } from '../utils/triageEngine';
 import { findNearbySimilarIssues } from '../utils/geoUtils';
 import { CATEGORIES, URGENCIES, SAMPLE_PRESET_IMAGES } from '../data/mockIssues';
@@ -25,6 +26,7 @@ import {
 
 export default function ReportWizardModal({ isOpen, onClose }) {
   const { addIssue, setSelectedIssue, issues, upvoteIssue, setReceiptIssue, addToast } = useCivic();
+  const { user, profile } = useAuth();
 
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -45,8 +47,8 @@ export default function ReportWizardModal({ isOpen, onClose }) {
   const [category, setCategory] = useState('Infrastructure');
   const [urgency, setUrgency] = useState('Medium');
   const [triageNote, setTriageNote] = useState(null);
-  const [reporterName, setReporterName] = useState('');
-  const [reporterContact, setReporterContact] = useState('');
+  const [reporterName, setReporterName] = useState(profile?.fullName || '');
+  const [reporterContact, setReporterContact] = useState(profile?.phone || profile?.email || '');
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   // Detect nearby similar active issues (Smart Deduplication)
@@ -76,8 +78,10 @@ export default function ReportWizardModal({ isOpen, onClose }) {
       setSubmittedIssue(null);
       setMediaUrl(SAMPLE_PRESET_IMAGES[0]?.url || '');
       setImageFileName('');
+      setReporterName(profile?.fullName || '');
+      setReporterContact(profile?.phone || profile?.email || '');
     }
-  }, [isOpen]);
+  }, [isOpen, profile]);
 
   if (!isOpen) return null;
 
@@ -124,9 +128,10 @@ export default function ReportWizardModal({ isOpen, onClose }) {
         location,
         mediaUrl,
         reporter: {
-          name: isAnonymous ? 'Anonymous Resident' : (reporterName || 'Citizen'),
-          contact: reporterContact || '',
-          isAnonymous
+          name: isAnonymous ? 'Anonymous Resident' : (reporterName || profile?.fullName || 'Citizen'),
+          contact: isAnonymous ? '' : (reporterContact || profile?.phone || profile?.email || ''),
+          isAnonymous,
+          userId: user?.id || null
         }
       });
 

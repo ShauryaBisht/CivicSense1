@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCivic } from '../context/CivicContext';
+import { useAuth } from '../context/AuthContext';
 import {
   ShieldAlert,
   ListFilter,
@@ -14,9 +15,16 @@ import {
   Moon,
   Trophy,
   Award,
-  WifiOff
+  WifiOff,
+  LogIn,
+  LogOut,
+  User,
+  ShieldCheck,
+  ChevronDown,
+  Home
 } from 'lucide-react';
 import NotificationDrawer from './NotificationDrawer';
+import UserProfileModal from './UserProfileModal';
 
 export default function Header() {
   const {
@@ -33,11 +41,28 @@ export default function Header() {
     isOnline,
     offlineQueue,
     userKarma,
-    setIsKarmaModalOpen
+    setIsKarmaModalOpen,
+    isBackendConnected
   } = useCivic();
+
+  const {
+    user,
+    profile,
+    openLogin,
+    openRegister,
+    signOut
+  } = useAuth();
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  // Synchronize context role with authenticated profile role if logged in
+  useEffect(() => {
+    if (profile?.role) {
+      setRole(profile.role === 'admin' ? 'admin' : 'citizen');
+    }
+  }, [profile?.role, setRole]);
 
   // Count active (non-resolved) issues
   const activeReportsCount = issues.filter((i) => i.status !== 'Resolved').length;
@@ -51,7 +76,7 @@ export default function Header() {
             {/* 1. Brand & Portal Title */}
             <div
               onClick={() => {
-                setActiveTab(role === 'admin' ? 'admin' : 'feed');
+                setActiveTab(role === 'admin' ? 'admin' : 'home');
               }}
               className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
             >
@@ -66,6 +91,12 @@ export default function Header() {
                   <span className="hidden sm:inline-flex items-center text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
                     Bengaluru
                   </span>
+                  {isBackendConnected && (
+                    <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/60 dark:border-emerald-800/60" title="Connected to live Supabase PostgreSQL backend">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Cloud Sync
+                    </span>
+                  )}
                 </div>
                 <span className="text-[11px] text-slate-500 dark:text-slate-400 hidden xl:block -mt-0.5 font-medium">
                   Municipal Redressal & Public Works
@@ -73,12 +104,24 @@ export default function Header() {
               </div>
             </div>
 
-            {/* 2. Desktop Navigation Bar (Feed, Map View, Ward Index, Admin Console) */}
+            {/* 2. Desktop Navigation Bar */}
             <nav className="hidden md:flex items-center gap-1.5 bg-slate-100/90 dark:bg-slate-800/70 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+              {/* Home */}
+              <button
+                onClick={() => setActiveTab('home')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'home'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Home</span>
+              </button>
               <button
                 onClick={() => {
                   setActiveTab('feed');
-                  if (role === 'admin') setRole('citizen');
+                  if (role === 'admin' && !profile) setRole('citizen');
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'feed' && role === 'citizen'
@@ -100,7 +143,7 @@ export default function Header() {
               <button
                 onClick={() => {
                   setActiveTab('map');
-                  if (role === 'admin') setRole('citizen');
+                  if (role === 'admin' && !profile) setRole('citizen');
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'map' && role === 'citizen'
@@ -115,7 +158,7 @@ export default function Header() {
               <button
                 onClick={() => {
                   setActiveTab('wards');
-                  if (role === 'admin') setRole('citizen');
+                  if (role === 'admin' && !profile) setRole('citizen');
                 }}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === 'wards' && role === 'citizen'
@@ -127,14 +170,15 @@ export default function Header() {
                 <span>Ward Index</span>
               </button>
 
-              {role === 'admin' && (
+              {(role === 'admin' || profile?.role === 'admin') && (
                 <button
                   onClick={() => {
                     setActiveTab('admin');
+                    setRole('admin');
                   }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'admin'
-                      ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs'
+                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
                       : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
                   }`}
                 >
@@ -166,37 +210,73 @@ export default function Header() {
                 <span>Report Issue</span>
               </button>
 
-              {/* Citizen / Admin Role Segmented Switcher */}
-              <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs font-medium">
+              {/* Role switcher — only shown to non-admin users */}
+              {profile?.role !== 'admin' && (
+                <div className="hidden lg:flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700 text-xs font-medium">
+                  <button
+                    onClick={() => {
+                      setRole('citizen');
+                      if (activeTab === 'admin') setActiveTab('home');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                      role === 'citizen'
+                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                    title="Switch to Citizen View"
+                  >
+                    Citizen
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (!user || profile?.role !== 'admin') {
+                        openLogin();
+                        return;
+                      }
+                      setRole('admin');
+                      setActiveTab('admin');
+                    }}
+                    className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
+                      role === 'admin'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+                    }`}
+                    title="Switch to Municipal Official Mode"
+                  >
+                    Official
+                  </button>
+                </div>
+              )}
+
+              {/* Supabase Auth Component: Sign In Button or Profile Pill */}
+              {!user ? (
                 <button
-                  onClick={() => {
-                    setRole('citizen');
-                    if (activeTab === 'admin') setActiveTab('feed');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                    role === 'citizen'
-                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                  title="Switch to Citizen View"
+                  onClick={openLogin}
+                  className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-xs shadow-blue-900/10 cursor-pointer"
                 >
-                  Citizen
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Sign In</span>
                 </button>
+              ) : (
                 <button
-                  onClick={() => {
-                    setRole('admin');
-                    setActiveTab('admin');
-                  }}
-                  className={`px-2.5 py-1 rounded-lg font-semibold transition-all cursor-pointer ${
-                    role === 'admin'
-                      ? 'bg-blue-600 text-white shadow-xs'
-                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-                  }`}
-                  title="Switch to Municipal Official Mode"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="flex items-center gap-2 p-1 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 dark:bg-slate-800 dark:hover:bg-slate-700/80 border border-slate-200/80 dark:border-slate-700 text-xs font-semibold transition-all cursor-pointer"
+                  title="View Civic Profile & Account Details"
                 >
-                  Official
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-[11px] flex items-center justify-center shadow-xs">
+                    {profile?.fullName ? profile.fullName.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div className="hidden xl:flex flex-col text-left leading-tight">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate max-w-[105px]">
+                      {profile?.fullName?.split(' ')[0] || 'User'}
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-slate-400 capitalize">
+                      {profile?.role === 'admin' ? 'Official' : 'Citizen'}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden xl:block" />
                 </button>
-              </div>
+              )}
 
               {/* Utility Icon Group (Theme, Notifications, Reset Demo) */}
               <div className="flex items-center gap-1 sm:gap-1.5 border-l border-slate-200 dark:border-slate-800 pl-2 sm:pl-3">
@@ -254,12 +334,86 @@ export default function Header() {
 
         {/* Mobile Navigation Dropdown Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white/98 dark:bg-slate-900/98 border-t border-slate-200 dark:border-slate-800 px-4 py-4 space-y-2 backdrop-blur-md shadow-lg">
+          <div className="md:hidden bg-white/98 dark:bg-slate-900/98 border-t border-slate-200 dark:border-slate-800 px-4 py-4 space-y-2.5 backdrop-blur-md shadow-lg">
+            
+            {/* Mobile Auth Banner / Profile Header */}
+            {!user ? (
+              <div className="p-3 bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/50 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-blue-900 dark:text-blue-200 block">
+                    Welcome to CivicFix
+                  </span>
+                  <span className="text-[11px] text-blue-700 dark:text-blue-300">
+                    Sign in to track reports & earn karma
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    openLogin();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold shadow-xs"
+                >
+                  Sign In
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  setIsProfileModalOpen(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="p-3 bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600 text-white font-black text-sm flex items-center justify-center">
+                    {profile?.fullName ? profile.fullName.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white block">
+                      {profile?.fullName || 'User'}
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 capitalize">
+                      {profile?.role === 'admin' ? 'Municipal Official' : 'Citizen Member'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    signOut();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-xs text-rose-600 dark:text-rose-400 font-semibold p-1"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
             {/* Mobile Navigation Links */}
             <button
               onClick={() => {
+                setActiveTab('home');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
+                activeTab === 'home'
+                  ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Home</span>
+              </div>
+            </button>
+
+            <button
+              onClick={() => {
                 setActiveTab('feed');
-                if (role === 'admin') setRole('citizen');
+                if (role === 'admin' && !profile) setRole('citizen');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
@@ -280,7 +434,7 @@ export default function Header() {
             <button
               onClick={() => {
                 setActiveTab('map');
-                if (role === 'admin') setRole('citizen');
+                if (role === 'admin' && !profile) setRole('citizen');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
@@ -296,7 +450,7 @@ export default function Header() {
             <button
               onClick={() => {
                 setActiveTab('wards');
-                if (role === 'admin') setRole('citizen');
+                if (role === 'admin' && !profile) setRole('citizen');
                 setMobileMenuOpen(false);
               }}
               className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
@@ -309,56 +463,64 @@ export default function Header() {
               <span>Ward Performance Index</span>
             </button>
 
-            <button
-              onClick={() => {
-                setRole('admin');
-                setActiveTab('admin');
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
-                activeTab === 'admin'
-                  ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              <LayoutDashboard className="w-4 h-4 text-indigo-500" />
-              <span>Admin Operations</span>
-            </button>
+            {(role === 'admin' || profile?.role === 'admin') && (
+              <button
+                onClick={() => {
+                  setRole('admin');
+                  setActiveTab('admin');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
+                  activeTab === 'admin'
+                    ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                    : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4 text-indigo-500" />
+                <span>Admin Operations</span>
+              </button>
+            )}
 
             {/* Mobile Actions Section */}
             <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2.5">
-              {/* Role Toggle on Mobile */}
-              <div className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
-                <span className="font-semibold text-slate-600 dark:text-slate-400">Portal Role</span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => {
-                      setRole('citizen');
-                      if (activeTab === 'admin') setActiveTab('feed');
-                    }}
-                    className={`px-3 py-1 rounded-lg font-bold text-xs ${
-                      role === 'citizen'
-                        ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                        : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    Citizen
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRole('admin');
-                      setActiveTab('admin');
-                    }}
-                    className={`px-3 py-1 rounded-lg font-bold text-xs ${
-                      role === 'admin'
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    Official
-                  </button>
+              {/* Role Toggle on Mobile — hidden for admin users */}
+              {profile?.role !== 'admin' && (
+                <div className="flex items-center justify-between p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
+                  <span className="font-semibold text-slate-600 dark:text-slate-400">Portal Role</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => {
+                        setRole('citizen');
+                        if (activeTab === 'admin') setActiveTab('home');
+                      }}
+                      className={`px-3 py-1 rounded-lg font-bold text-xs ${
+                        role === 'citizen'
+                          ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      Citizen
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (!user || profile?.role !== 'admin') {
+                          openLogin();
+                          return;
+                        }
+                        setRole('admin');
+                        setActiveTab('admin');
+                      }}
+                      className={`px-3 py-1 rounded-lg font-bold text-xs ${
+                        role === 'admin'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-500 dark:text-slate-400'
+                      }`}
+                    >
+                      Official
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <button
                 onClick={() => {
@@ -390,6 +552,12 @@ export default function Header() {
       <NotificationDrawer
         isOpen={isNotifOpen}
         onClose={() => setIsNotifOpen(false)}
+      />
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
     </>
   );
