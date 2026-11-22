@@ -20,7 +20,8 @@ import {
   LogOut,
   User,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  Home
 } from 'lucide-react';
 import NotificationDrawer from './NotificationDrawer';
 import UserProfileModal from './UserProfileModal';
@@ -41,8 +42,7 @@ export default function Header() {
     offlineQueue,
     userKarma,
     setIsKarmaModalOpen,
-    isBackendConnected,
-    addToast
+    isBackendConnected
   } = useCivic();
 
   const {
@@ -57,20 +57,15 @@ export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  // Synchronize context role strictly with authenticated profile role from Supabase DB
+  // Synchronize context role with authenticated profile role if logged in
   useEffect(() => {
-    if (profile?.role === 'admin') {
-      setRole('admin');
-    } else {
-      setRole('citizen');
-      if (activeTab === 'admin') {
-        setActiveTab('feed');
-      }
+    if (profile?.role) {
+      setRole(profile.role === 'admin' ? 'admin' : 'citizen');
     }
-  }, [profile?.role, setRole, activeTab, setActiveTab]);
+  }, [profile?.role, setRole]);
 
   // Count active (non-resolved) issues
-  const activeReportsCount = issues.filter((i) => i.status !== 'Resolved').length;
+  const activeReportsCount = (issues || []).filter((i) => i && i.status !== 'Resolved').length;
 
   const handleOpenReport = () => {
     if (!user) {
@@ -90,7 +85,7 @@ export default function Header() {
             {/* 1. Brand & Portal Title */}
             <div
               onClick={() => {
-                setActiveTab(role === 'admin' ? 'admin' : 'feed');
+                setActiveTab(role === 'admin' ? 'admin' : 'home');
               }}
               className="flex items-center gap-3 cursor-pointer select-none group shrink-0"
             >
@@ -118,8 +113,20 @@ export default function Header() {
               </div>
             </div>
 
-            {/* 2. Desktop Navigation Bar (Feed, Map View, Ward Index, Admin Console) */}
+            {/* 2. Desktop Navigation Bar */}
             <nav className="hidden md:flex items-center gap-1.5 bg-slate-100/90 dark:bg-slate-800/70 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
+              {/* Home */}
+              <button
+                onClick={() => setActiveTab('home')}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  activeTab === 'home'
+                    ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-300 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/50 dark:hover:bg-slate-700/50'
+                }`}
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" />
+                <span>Home</span>
+              </button>
               <button
                 onClick={() => setActiveTab('feed')}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
@@ -165,7 +172,10 @@ export default function Header() {
 
               {profile?.role === 'admin' && (
                 <button
-                  onClick={() => setActiveTab('admin')}
+                  onClick={() => {
+                    setActiveTab('admin');
+                    setRole('admin');
+                  }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                     activeTab === 'admin'
                       ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-xs'
@@ -199,8 +209,6 @@ export default function Header() {
                 <PlusCircle className="w-4 h-4" />
                 <span>Report Issue</span>
               </button>
-
-
 
               {/* Supabase Auth Component: Sign In Button or Profile Pill */}
               {!user ? (
@@ -347,7 +355,23 @@ export default function Header() {
             )}
 
             {/* Mobile Navigation Links */}
-            {/* Mobile Navigation Links */}
+            <button
+              onClick={() => {
+                setActiveTab('home');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold ${
+                activeTab === 'home'
+                  ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Home</span>
+              </div>
+            </button>
+
             <button
               onClick={() => {
                 setActiveTab('feed');
@@ -401,6 +425,7 @@ export default function Header() {
             {profile?.role === 'admin' && (
               <button
                 onClick={() => {
+                  setRole('admin');
                   setActiveTab('admin');
                   setMobileMenuOpen(false);
                 }}
@@ -417,7 +442,6 @@ export default function Header() {
 
             {/* Mobile Actions Section */}
             <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2.5">
-
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);

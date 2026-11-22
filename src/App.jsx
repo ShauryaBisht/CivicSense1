@@ -1,7 +1,9 @@
 import React from 'react';
 import { CivicProvider, useCivic } from './context/CivicContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import LandingPage from './components/LandingPage';
 import Header from './components/Header';
+import HomePage from './components/HomePage';
 import CitizenFeed from './components/CitizenFeed';
 import MapExplorer from './components/MapExplorer';
 import AdminDashboard from './components/AdminDashboard';
@@ -13,8 +15,9 @@ import CivicKarmaModal from './components/CivicKarmaModal';
 import AuthModal from './components/AuthModal';
 import ToastContainer from './components/ToastContainer';
 import Footer from './components/Footer';
-import { WifiOff } from 'lucide-react';
+import { WifiOff, Loader2 } from 'lucide-react';
 
+// ── Main App Layout (only rendered after sign-in) ─────────────────────────────
 function MainLayout() {
   const {
     activeTab,
@@ -36,7 +39,7 @@ function MainLayout() {
       {!isOnline && (
         <div className="bg-amber-600 text-white text-xs px-4 py-2 font-semibold text-center flex items-center justify-center gap-2 shadow-sm">
           <WifiOff className="w-4 h-4 animate-pulse" />
-          <span>Offline Mode: You are working offline. Submissions will be stored in local cache and automatically synced to municipal dispatch once reconnected.</span>
+          <span>Offline Mode: Submissions stored locally and will auto-sync once reconnected.</span>
           {offlineQueue?.length > 0 && (
             <span className="bg-amber-800 px-2 py-0.5 rounded font-mono font-bold text-[11px]">
               {offlineQueue.length} Pending Sync
@@ -45,62 +48,56 @@ function MainLayout() {
         </div>
       )}
 
-      {/* Top Navigation Bar */}
       <Header />
 
-      {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-5 sm:py-6">
-        {activeTab === 'feed' && <CitizenFeed />}
-        {activeTab === 'map' && <MapExplorer />}
+        {activeTab === 'home'  && <HomePage />}
+        {activeTab === 'feed'  && <CitizenFeed />}
+        {activeTab === 'map'   && <MapExplorer />}
         {activeTab === 'wards' && <WardLeaderboard />}
         {activeTab === 'admin' && <AdminDashboard />}
+        {!['home', 'feed', 'map', 'wards', 'admin'].includes(activeTab) && <HomePage />}
       </main>
 
-      {/* Report Issue Modal */}
-      <ReportWizardModal
-        isOpen={isReportModalOpen}
-        onClose={() => setIsReportModalOpen(false)}
-      />
+      <ReportWizardModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} />
 
-      {/* Issue Details Modal */}
       {selectedIssue && (
-        <IssueDetailModal
-          issue={selectedIssue}
-          onClose={() => setSelectedIssue(null)}
-        />
+        <IssueDetailModal issue={selectedIssue} onClose={() => setSelectedIssue(null)} />
       )}
 
-      {/* Official Grievance Acknowledgement Receipt Modal */}
       {receiptIssue && (
-        <ReceiptModal
-          issue={receiptIssue}
-          onClose={() => setReceiptIssue(null)}
-        />
+        <ReceiptModal issue={receiptIssue} onClose={() => setReceiptIssue(null)} />
       )}
 
-      {/* Civic Karma Profile & Badges Modal */}
-      <CivicKarmaModal
-        isOpen={isKarmaModalOpen}
-        onClose={() => setIsKarmaModalOpen(false)}
-      />
-
-      {/* Supabase Authentication Modal (Sign In / Register / Reset Password) */}
+      <CivicKarmaModal isOpen={isKarmaModalOpen} onClose={() => setIsKarmaModalOpen(false)} />
       <AuthModal />
-
-      {/* Toast Alert Notifications */}
       <ToastContainer />
-
-      {/* Footer */}
       <Footer />
     </div>
   );
 }
 
+// ── Root: shows LandingPage or app depending on auth state ────────────────────
+function RootRouter() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#060b18]">
+        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+      </div>
+    );
+  }
+
+  return user ? <MainLayout /> : <LandingPage />;
+}
+
+// ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
   return (
     <CivicProvider>
       <AuthProvider>
-        <MainLayout />
+        <RootRouter />
       </AuthProvider>
     </CivicProvider>
   );

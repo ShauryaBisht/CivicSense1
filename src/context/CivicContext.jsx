@@ -28,11 +28,20 @@ import { dispatchIssueEmail, getDepartmentRoute } from '../services/emailDispatc
 
 const CivicContext = createContext();
 
-const LOCAL_STORAGE_KEY = 'civicfix_issues_bengaluru_v1';
+const LOCAL_STORAGE_KEY = 'civicfix_issues_bengaluru_v2';
 const NOTIFICATIONS_KEY = 'civicfix_notifications_bengaluru_v1';
 const THEME_KEY = 'civicfix_theme_preference';
 const OFFLINE_QUEUE_KEY = 'civicfix_offline_queue_v1';
 const KARMA_KEY = 'civicfix_user_karma_v1';
+
+const DEPARTMENT_BY_CATEGORY = {
+  'Infrastructure': 'BBMP Road Infrastructure',
+  'Sanitation': 'BBMP Solid Waste Management (SWM)',
+  'Water & Drainage': 'BWSSB (Water Supply & Sewerage)',
+  'Electrical': 'BESCOM (Electricity Supply & Streetlights)',
+  'Public Safety': 'Bengaluru Traffic Police & Road Safety',
+  'Parks & Recreation': 'BBMP Horticulture & Parks'
+};
 
 export function CivicProvider({ children }) {
   // Theme State: 'light' | 'dark'
@@ -80,23 +89,12 @@ export function CivicProvider({ children }) {
     };
   });
 
-  // Modal States
-  const [receiptIssue, setReceiptIssue] = useState(null);
-  const [isKarmaModalOpen, setIsKarmaModalOpen] = useState(false);
-
   // Sync Karma to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(KARMA_KEY, JSON.stringify(userKarma));
     } catch (e) {}
   }, [userKarma]);
-
-  // Sync Offline Queue
-  useEffect(() => {
-    try {
-      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
-    } catch (e) {}
-  }, [offlineQueue]);
 
   // Award Karma Points Helper
   const awardKarma = (actionType, extraPoints = 0) => {
@@ -123,15 +121,28 @@ export function CivicProvider({ children }) {
       if (newVerifications >= 1 && !newBadges.includes('ground_auditor')) newBadges.push('ground_auditor');
       if (newReports >= 5 && !newBadges.includes('civic_sentinel')) newBadges.push('civic_sentinel');
 
-      return {
+      const nextKarma = {
         points: prev.points + addPts,
         reportsCount: newReports,
         endorsementsCount: newEndorsements,
         verificationsCount: newVerifications,
         badges: newBadges
       };
+
+      return nextKarma;
     });
   };
+
+  // Modal States
+  const [receiptIssue, setReceiptIssue] = useState(null);
+  const [isKarmaModalOpen, setIsKarmaModalOpen] = useState(false);
+
+  // Sync Offline Queue
+  useEffect(() => {
+    try {
+      localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(offlineQueue));
+    } catch (e) {}
+  }, [offlineQueue]);
 
   // 1. Issues State (Initialize from localStorage or default dataset)
   const [issues, setIssues] = useState(() => {
@@ -177,8 +188,8 @@ export function CivicProvider({ children }) {
   // 3. User Role: 'citizen' or 'admin'
   const [role, setRole] = useState('citizen');
 
-  // 4. View Mode: 'feed' | 'map' | 'admin' | 'wards'
-  const [activeTab, setActiveTab] = useState('feed');
+  // 4. View Mode: 'home' | 'feed' | 'map' | 'admin' | 'wards'
+  const [activeTab, setActiveTab] = useState('home');
 
   // 5. Selected issue for viewing details
   const [selectedIssue, setSelectedIssue] = useState(null);
@@ -422,7 +433,7 @@ export function CivicProvider({ children }) {
       },
       upvotes: 1,
       hasUpvoted: true,
-      department: newIssueData.department || 'BBMP Road Infrastructure',
+      department: newIssueData.department || DEPARTMENT_BY_CATEGORY[newIssueData.category] || 'BBMP Road Infrastructure',
       assignedTeam: null,
       eta: 'Awaiting triage & scheduling',
       dispatchStatus: 'Pending',
@@ -663,6 +674,41 @@ export function CivicProvider({ children }) {
     addToast(`Ticket status updated to "${newStatus}".`, 'success');
   };
 
+  // Direct Department Assignment (for Admin quick triage)
+  const assignDepartment = (issueId, newDepartment) => {
+    if (!newDepartment) return;
+    const nowIso = new Date().toISOString();
+
+    setIssues((prev) =>
+      prev.map((item) => {
+        if (item.id === issueId) {
+          const timelineEntry = {
+            id: 'tl-' + Date.now(),
+            status: item.status,
+            timestamp: nowIso,
+            title: `Assigned to ${newDepartment}`,
+            description: `Official administrative assignment updated department jurisdiction to ${newDepartment}.`,
+            actor: 'Municipal Command Center',
+            role: 'Official'
+          };
+
+          const updated = {
+            ...item,
+            department: newDepartment,
+            updatedAt: nowIso,
+            timeline: [...(item.timeline || []), timelineEntry]
+          };
+
+          updateIssueInBackend(issueId, updated);
+          return updated;
+        }
+        return item;
+      })
+    );
+
+    addToast(`Assigned to ${newDepartment}.`, 'success');
+  };
+
   // Reassign Department / Crew
   const reassignIssue = (issueId, department, teamName, leadWorker, contactNumber) => {
     const nowIso = new Date().toISOString();
@@ -861,6 +907,7 @@ export function CivicProvider({ children }) {
         upvoteIssue,
         addComment,
         updateIssueStatus,
+        assignDepartment,
         reassignIssue,
         submitProofOfWork,
         rateResolution,

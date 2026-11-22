@@ -31,9 +31,9 @@ export default function ReportWizardModal({ isOpen, onClose }) {
     upvoteIssue,
     setReceiptIssue,
     addToast,
+    sampleImages,
     categories,
-    urgencies,
-    sampleImages
+    urgencies
   } = useCivic();
   const { user, profile, openLogin } = useAuth();
 

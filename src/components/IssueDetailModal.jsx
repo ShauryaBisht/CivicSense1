@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useCivic } from '../context/CivicContext';
 import { useAuth } from '../context/AuthContext';
+import { DEPARTMENTS } from '../data/mockIssues';
 import BeforeAfterSlider from './BeforeAfterSlider';
 import {
   X,

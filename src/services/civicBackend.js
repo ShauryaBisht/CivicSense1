@@ -123,7 +123,7 @@ export async function fetchIssuesFromBackend() {
     }
 
     if (data && data.length > 0) {
-      return data.map(fromDbIssue).filter(Boolean);
+      return data.map(fromDbIssue);
     }
 
     // If table exists but is empty, seed it with the realistic initial dataset!

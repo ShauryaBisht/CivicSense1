@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useCivic } from '../context/CivicContext';
 import { useAuth } from '../context/AuthContext';
+import { DEPARTMENTS, CATEGORIES, URGENCIES, STATUSES } from '../data/mockIssues';
 import InteractiveMap from './InteractiveMap';
 import AdminManageDrawer from './AdminManageDrawer';
 import {
@@ -32,6 +33,7 @@ export default function AdminDashboard() {
   const {
     issues,
     updateIssueStatus,
+    assignDepartment,
     setSelectedIssue,
     selectedForManage,
     setSelectedForManage,
@@ -43,7 +45,7 @@ export default function AdminDashboard() {
     forwardIssueEmail
   } = useCivic();
 
-  const { profile, openLogin } = useAuth();
+  const { profile, openLogin, loginAsDemo } = useAuth();
 
   const [adminView, setAdminView] = useState('kanban'); // 'kanban' | 'table' | 'map'
   const [selectedDeptFilter, setSelectedDeptFilter] = useState('All');
@@ -56,6 +58,39 @@ export default function AdminDashboard() {
     await forwardIssueEmail(issue.id);
     setDispatchingId(null);
   };
+
+  // Auth Guard — strictly restrict to verified municipal officials
+  if (!profile || profile.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-rose-50 dark:bg-rose-950/50 flex items-center justify-center border border-rose-200 dark:border-rose-800">
+          <ShieldAlert className="w-8 h-8 text-rose-500" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+            Access Restricted: Municipal Officials Only
+          </h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mt-1">
+            The Admin Operations Console is restricted to authorized BBMP municipal engineers, department heads, and dispatch officers.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
+          <button
+            onClick={() => setActiveTab('home')}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white text-sm font-bold rounded-xl transition-all shadow-xs cursor-pointer"
+          >
+            Back to Citizen Portal
+          </button>
+          <button
+            onClick={openLogin}
+            className="px-5 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-xs cursor-pointer"
+          >
+            Sign In with Official Account
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Key Metrics
   const totalIssues = issues.length;
@@ -486,8 +521,17 @@ export default function AdminDashboard() {
                         {issue.urgency}
                       </span>
                     </td>
-                    <td className="p-3.5 text-slate-600 dark:text-slate-400 text-[11px] max-w-[150px] truncate">
-                      {issue.department}
+                    <td className="p-3.5">
+                      <select
+                        value={issue.department}
+                        onChange={(e) => assignDepartment(issue.id, e.target.value)}
+                        className="border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1 text-xs bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-medium cursor-pointer max-w-[180px] truncate focus:ring-2 focus:ring-blue-500/30"
+                        title="Reassign Department"
+                      >
+                        {DEPARTMENTS.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="p-3.5">
                       <div className="flex flex-col gap-1 items-start">
