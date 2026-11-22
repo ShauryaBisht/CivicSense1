@@ -415,19 +415,27 @@ export default function AdminDashboard() {
                             className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${
                               issue.dispatchStatus === 'Failed'
                                 ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                                : issue.dispatchStatus === 'Pending'
-                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : issue.dispatchStatus === 'Dispatched'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
                             }`}
-                            title={issue.dispatchedTo ? `Forwarded to: ${issue.dispatchedTo}` : 'Queued for auto-dispatch'}
+                            title={
+                              issue.dispatchStatus === 'Dispatched'
+                                ? `Dispatched to: ${issue.dispatchedTo || 'BBMP Department Desk'}`
+                                : 'Awaiting admin verification before dispatching email'
+                            }
                           >
-                            <MailCheck className="w-2.5 h-2.5" />
+                            {issue.dispatchStatus === 'Dispatched' ? (
+                              <MailCheck className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                            ) : (
+                              <Clock className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+                            )}
                             <span className="truncate max-w-[125px]">
                               {issue.dispatchStatus === 'Failed'
                                 ? 'Dispatch Failed'
-                                : issue.dispatchStatus === 'Pending'
-                                ? 'Pending Dispatch'
-                                : `Dispatched to ${issue.dispatchDepartment?.replace('Department of ', '') || 'Dept'}`}
+                                : issue.dispatchStatus === 'Dispatched'
+                                ? `Dispatched to ${issue.dispatchDepartment?.replace('Department of ', '') || 'Dept'}`
+                                : 'Needs Verification'}
                             </span>
                           </span>
 
@@ -435,7 +443,7 @@ export default function AdminDashboard() {
                             type="button"
                             disabled={dispatchingId === issue.id}
                             onClick={(e) => handleManualDispatch(e, issue)}
-                            title="Dispatch / Forward via Email"
+                            title={issue.dispatchStatus === 'Dispatched' ? 'Re-dispatch Notice via Email' : 'Verify & Dispatch via Email'}
                             className="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer"
                           >
                             {dispatchingId === issue.id ? (
@@ -570,7 +578,7 @@ export default function AdminDashboard() {
                         type="button"
                         disabled={dispatchingId === issue.id}
                         onClick={(e) => handleManualDispatch(e, issue)}
-                        title="Dispatch / Forward via Email"
+                        title={issue.dispatchStatus === 'Dispatched' ? 'Re-dispatch Notice via Email' : 'Verify & Dispatch via Email'}
                         className="inline-flex items-center gap-1 text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white font-medium px-2 py-1 border border-indigo-200 dark:border-indigo-800 rounded-md bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100 cursor-pointer disabled:opacity-50"
                       >
                         {dispatchingId === issue.id ? (
@@ -578,7 +586,7 @@ export default function AdminDashboard() {
                         ) : (
                           <Send className="w-3 h-3" />
                         )}
-                        <span className="text-[11px]">Dispatch</span>
+                        <span className="text-[11px]">{issue.dispatchStatus === 'Dispatched' ? 'Re-dispatch' : 'Verify & Dispatch'}</span>
                       </button>
                       <button
                         onClick={() => setSelectedIssue(issue)}

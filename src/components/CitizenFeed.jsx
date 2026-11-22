@@ -739,19 +739,29 @@ function IssueCard({ issue, onSelect, onUpvote, formatDate }) {
                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                     issue.dispatchStatus === 'Failed'
                       ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
-                      : issue.dispatchStatus === 'Pending'
-                      ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
-                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                      : issue.dispatchStatus === 'Dispatched'
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
                   }`}
-                  title={issue.dispatchedTo ? `Forwarded to: ${issue.dispatchedTo}` : 'Queued for automated email dispatch'}
+                  title={
+                    issue.dispatchStatus === 'Dispatched'
+                      ? `Verified & forwarded to: ${issue.dispatchedTo || 'BBMP Department Desk'}`
+                      : 'Awaiting review and verification by municipal admin'
+                  }
                 >
-                  <MailCheck className="w-2.5 h-2.5" />
+                  {issue.dispatchStatus === 'Dispatched' ? (
+                    <MailCheck className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                  ) : issue.dispatchStatus === 'Failed' ? (
+                    <AlertCircle className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+                  ) : (
+                    <Clock className="w-2.5 h-2.5 text-amber-600 dark:text-amber-400" />
+                  )}
                   <span>
                     {issue.dispatchStatus === 'Failed'
                       ? 'Dispatch Failed'
-                      : issue.dispatchStatus === 'Pending'
-                      ? 'Pending Dispatch'
-                      : `Dispatched to ${issue.dispatchDepartment?.replace('Department of ', '') || 'Dept'}`}
+                      : issue.dispatchStatus === 'Dispatched'
+                      ? `Dispatched to ${issue.dispatchDepartment?.replace('Department of ', '') || 'Dept'}`
+                      : 'Awaiting Verification'}
                   </span>
                 </span>
               </div>

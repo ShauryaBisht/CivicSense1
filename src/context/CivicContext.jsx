@@ -436,7 +436,7 @@ export function CivicProvider({ children }) {
       department: newIssueData.department || DEPARTMENT_BY_CATEGORY[newIssueData.category] || 'BBMP Road Infrastructure',
       assignedTeam: null,
       eta: 'Awaiting triage & scheduling',
-      dispatchStatus: 'Pending',
+      dispatchStatus: 'Pending Verification',
       dispatchedAt: null,
       dispatchedTo: null,
       dispatchDepartment: null,
@@ -445,8 +445,8 @@ export function CivicProvider({ children }) {
           id: 'tl-' + Date.now(),
           status: 'Submitted',
           timestamp: nowIso,
-          title: 'Issue Logged by Citizen',
-          description: 'Ticket received and queued for automated category triage and municipal dispatch.',
+          title: 'Grievance Submitted',
+          description: 'Ticket received and queued for municipal admin verification prior to department email dispatch.',
           actor: newIssueData.isAnonymous ? 'Anonymous Citizen' : (newIssueData.reporter?.name || 'Citizen'),
           role: 'Citizen'
         }
@@ -464,67 +464,29 @@ export function CivicProvider({ children }) {
       addToast(`Offline: Issue ${ticketId} stored locally. It will auto-sync when connection restores.`, 'warning');
     } else {
       setIssues((prev) => [createdIssue, ...prev]);
-      addToast(`Issue ${ticketId} successfully submitted! Tracking is now active.`, 'success');
+      addToast(`Issue ${ticketId} successfully submitted! Awaiting municipal verification.`, 'success');
       // Sync to live Supabase backend
       createIssueInBackend(createdIssue);
-
-      // Trigger automated email forwarding to respective municipal department
-      dispatchIssueEmail(createdIssue)
-        .then((res) => {
-          if (res?.success) {
-            setIssues((prev) =>
-              prev.map((i) => {
-                if (i.id === createdIssue.id) {
-                  const updated = {
-                    ...i,
-                    dispatchStatus: 'Dispatched',
-                    dispatchedAt: res.dispatchedAt,
-                    dispatchedTo: res.recipientSummary,
-                    dispatchDepartment: res.department,
-                    timeline: [
-                      ...(i.timeline || []),
-                      {
-                        id: 'tl-dispatch-' + Date.now(),
-                        status: 'Dispatched',
-                        timestamp: res.dispatchedAt,
-                        title: `Forwarded to ${res.shortDept || res.department}`,
-                        description: `Auto-dispatched formal grievance notice to ${res.recipientSummary}.`,
-                        actor: 'CivicFix Dispatch Engine',
-                        role: 'System'
-                      }
-                    ]
-                  };
-                  createIssueInBackend(updated);
-                  return updated;
-                }
-                return i;
-              })
-            );
-            addToast(`Complaint automatically dispatched to ${res.shortDept || res.department}`, 'info');
-          } else {
-            setIssues((prev) =>
-              prev.map((i) => (i.id === createdIssue.id ? { ...i, dispatchStatus: 'Failed' } : i))
-            );
-          }
-        })
-        .catch((err) => {
-          console.warn('Auto-dispatch notice:', err);
-        });
     }
 
     awardKarma('report', 50);
     return createdIssue;
   };
 
-  // Manual Dispatch / Forward via Email (Admin or Citizen Trigger)
+  // Official Municipal Verification & Email Dispatch (Admin Only)
   const forwardIssueEmail = async (issueId, customRecipient = null) => {
+    if (role !== 'admin') {
+      addToast('Access Restricted: Only municipal administrators can verify complaints and dispatch department emails.', 'warning');
+      return { success: false, error: 'Unauthorized: Admin role required' };
+    }
+
     const target = issues.find((i) => i.id === issueId);
     if (!target) {
       addToast('Error: Grievance not found.', 'error');
       return { success: false, error: 'Issue not found' };
     }
 
-    addToast(`Dispatching formal complaint for ${target.ticketId}...`, 'info');
+    addToast(`Verifying & dispatching formal complaint for ${target.ticketId}...`, 'info');
     try {
       const res = await dispatchIssueEmail(target, customRecipient);
       if (res?.success) {
@@ -540,13 +502,13 @@ export function CivicProvider({ children }) {
                 timeline: [
                   ...(i.timeline || []),
                   {
-                    id: 'tl-fwd-' + Date.now(),
+                    id: 'tl-dispatch-' + Date.now(),
                     status: 'Dispatched',
                     timestamp: res.dispatchedAt,
-                    title: `Dispatched to ${res.shortDept || res.department}`,
-                    description: `Municipal notice forwarded via email to ${res.recipientSummary}.`,
-                    actor: role === 'admin' ? 'Municipal Officer' : 'Civic Member',
-                    role: role === 'admin' ? 'Admin' : 'Citizen'
+                    title: `Verified & Dispatched to ${res.shortDept || res.department}`,
+                    description: `Grievance verified by municipal officer and formally dispatched via email to ${res.recipientSummary}.`,
+                    actor: 'Municipal Officer',
+                    role: 'Admin'
                   }
                 ]
               };
@@ -557,7 +519,7 @@ export function CivicProvider({ children }) {
           })
         );
         addToast(
-          `Dispatched ${target.ticketId} to ${res.shortDept || res.department} (${res.recipientSummary})`,
+          `Verified & dispatched ${target.ticketId} to ${res.shortDept || res.department} (${res.recipientSummary})`,
           'success'
         );
         return res;

@@ -179,12 +179,12 @@ export default function AdminManageDrawer({ issue, onClose }) {
               {isDispatching ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Forwarding Notice via Email...</span>
+                  <span>Verifying & Dispatching Email...</span>
                 </>
               ) : (
                 <>
                   <Send className="w-3.5 h-3.5" />
-                  <span>Dispatch / Forward via Email</span>
+                  <span>{issue.dispatchStatus === 'Dispatched' ? 'Re-dispatch Notice via Email' : 'Verify & Dispatch via Email'}</span>
                 </>
               )}
             </button>
