@@ -238,7 +238,18 @@ export function CivicProvider({ children }) {
 
         if (isMounted) {
           if (backendIssues && backendIssues.length > 0) {
-            setIssues(backendIssues);
+            setIssues((prevLocal) => {
+              // Preserve any locally created issues that may not have synced to backend yet
+              const backendIds = new Set(backendIssues.map((b) => b.id));
+              const localUnsynced = (prevLocal || []).filter(
+                (loc) => loc && loc.id && !backendIds.has(loc.id)
+              );
+              // Background sync unsynced issues to Supabase
+              localUnsynced.forEach((item) => {
+                createIssueInBackend(item);
+              });
+              return [...localUnsynced, ...backendIssues];
+            });
             setIsBackendConnected(true);
           }
 
@@ -360,14 +371,54 @@ export function CivicProvider({ children }) {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Persist issues to localStorage backup
+  // Persist issues to localStorage backup & broadcast changes to other open tabs
   useEffect(() => {
     try {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(issues));
+      // Broadcast instantaneously to all other open tabs
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('civicfix_tab_sync');
+        bc.postMessage({ type: 'SYNC_ISSUES', issues });
+        bc.close();
+      }
     } catch (e) {
       console.error('Failed to save issues to localStorage', e);
     }
   }, [issues]);
+
+  // Instant Cross-Tab Sync Listeners (BroadcastChannel + Window Storage Event)
+  useEffect(() => {
+    let bc;
+    try {
+      if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+        bc = new BroadcastChannel('civicfix_tab_sync');
+        bc.onmessage = (event) => {
+          if (event.data?.type === 'SYNC_ISSUES' && Array.isArray(event.data?.issues)) {
+            setIssues(event.data.issues);
+          }
+        };
+      }
+    } catch (e) {
+      console.warn('BroadcastChannel not supported in environment', e);
+    }
+
+    const handleStorageChange = (e) => {
+      if (e.key === LOCAL_STORAGE_KEY && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setIssues(parsed);
+          }
+        } catch (err) {}
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      bc?.close();
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
 
   // Persist notifications on change
   useEffect(() => {

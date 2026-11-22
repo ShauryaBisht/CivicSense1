@@ -209,15 +209,18 @@ export function generateEmailPayload(issue, customRecipient = null) {
     ? '[Hidden per Citizen Request]'
     : (issue.reporter?.contact || issue.reporter?.email || '[Contact on Municipal File]');
 
-  // Recipient list
-  const recipients = customRecipient
+  // Official department routing list
+  const officialRecipients = customRecipient
     ? [customRecipient]
     : route.emails;
 
   const testRecipient = import.meta.env.VITE_EMAIL_DISPATCH_TEST_RECIPIENT;
-  if (testRecipient && !recipients.includes(testRecipient)) {
-    recipients.push(testRecipient);
-  }
+
+  // Safe Demo Mode:
+  // When a test recipient is configured in .env, deliver physically ONLY to the test inbox
+  // to avoid spamming real municipal commissioners during testing, while preserving
+  // the official BBMP/BESCOM/BWSSB email addresses for display and UI records.
+  const actualDeliveryAddress = testRecipient ? testRecipient : officialRecipients.join(',');
 
   // CC citizen if email is available and not anonymous
   const citizenEmail = (!isAnonymous && issue.reporter?.email) ? issue.reporter.email : null;
@@ -231,8 +234,8 @@ CivicFix / CivicSense Automated Redressal System - BBMP Bengaluru
 ================================================================================
 
 DISPATCH TARGET       : ${route.department}
-OFFICIAL RECIPIENTS   : ${recipients.join(', ')}
-DATE & TIME (IST)     : ${reportedAt}
+OFFICIAL RECIPIENTS   : ${officialRecipients.join(', ')}
+${testRecipient ? `DEMO DELIVERY ROUTE   : Delivered safely to demo tester (${testRecipient})\n` : ''}DATE & TIME (IST)     : ${reportedAt}
 JURISDICTION WARD     : Ward ${wardNumber} (${neighborhood})
 
 --- 1. GRIEVANCE PARTICULARS ---
@@ -268,13 +271,13 @@ Citizen's Charter SLA.
   return {
     subject,
     body,
-    recipients,
+    recipients: officialRecipients,
     route,
     wardNumber,
     citizenEmail,
     templateParams: {
-      to_email: recipients.join(','),
-      recipient_emails: recipients.join(', '),
+      to_email: actualDeliveryAddress,
+      recipient_emails: officialRecipients.join(', '),
       subject,
       department_name: route.department,
       ticket_id: ticketId,
@@ -291,7 +294,7 @@ Citizen's Charter SLA.
       reporter_name: citizenName,
       reporter_contact: citizenContact,
       submission_timestamp: reportedAt,
-      cc_email: citizenEmail || '',
+      cc_email: testRecipient ? '' : (citizenEmail || ''),
       email_body: body
     }
   };
