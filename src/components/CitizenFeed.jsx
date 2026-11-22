@@ -25,7 +25,10 @@ import {
   ArrowUpDown,
   ChevronDown,
   CheckCircle2,
-  Calendar
+  Calendar,
+  MailCheck,
+  Mail,
+  AlertCircle
 } from 'lucide-react';
 
 export default function CitizenFeed() {
@@ -726,9 +729,32 @@ function IssueCard({ issue, onSelect, onUpvote, formatDate }) {
 
           {/* Location & Department Metadata */}
           <div className="pt-1.5 space-y-1.5 border-t border-slate-100 dark:border-slate-700/60">
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
-              <Building className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
-              <span className="truncate">{issue.department}</span>
+            <div className="flex items-center justify-between text-[11px] gap-2">
+              <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 truncate">
+                <Building className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 shrink-0" />
+                <span className="truncate">{issue.department}</span>
+              </div>
+              <div className="shrink-0">
+                <span
+                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                    issue.dispatchStatus === 'Failed'
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800'
+                      : issue.dispatchStatus === 'Pending'
+                      ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60'
+                  }`}
+                  title={issue.dispatchedTo ? `Forwarded to: ${issue.dispatchedTo}` : 'Queued for automated email dispatch'}
+                >
+                  <MailCheck className="w-2.5 h-2.5" />
+                  <span>
+                    {issue.dispatchStatus === 'Failed'
+                      ? 'Dispatch Failed'
+                      : issue.dispatchStatus === 'Pending'
+                      ? 'Pending Dispatch'
+                      : `Dispatched to ${issue.dispatchDepartment?.replace('Department of ', '') || 'Dept'}`}
+                  </span>
+                </span>
+              </div>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
               <Calendar className="w-3.5 h-3.5 shrink-0" />

@@ -24,6 +24,7 @@ import {
   fetchDispatchTeamsFromBackend,
   updateUserKarmaInBackend
 } from '../services/civicBackend';
+import { dispatchIssueEmail, getDepartmentRoute } from '../services/emailDispatchService';
 
 const CivicContext = createContext();
 
@@ -424,6 +425,10 @@ export function CivicProvider({ children }) {
       department: newIssueData.department || 'BBMP Road Infrastructure',
       assignedTeam: null,
       eta: 'Awaiting triage & scheduling',
+      dispatchStatus: 'Pending',
+      dispatchedAt: null,
+      dispatchedTo: null,
+      dispatchDepartment: null,
       timeline: [
         {
           id: 'tl-' + Date.now(),
@@ -451,10 +456,111 @@ export function CivicProvider({ children }) {
       addToast(`Issue ${ticketId} successfully submitted! Tracking is now active.`, 'success');
       // Sync to live Supabase backend
       createIssueInBackend(createdIssue);
+
+      // Trigger automated email forwarding to respective municipal department
+      dispatchIssueEmail(createdIssue)
+        .then((res) => {
+          if (res?.success) {
+            setIssues((prev) =>
+              prev.map((i) => {
+                if (i.id === createdIssue.id) {
+                  const updated = {
+                    ...i,
+                    dispatchStatus: 'Dispatched',
+                    dispatchedAt: res.dispatchedAt,
+                    dispatchedTo: res.recipientSummary,
+                    dispatchDepartment: res.department,
+                    timeline: [
+                      ...(i.timeline || []),
+                      {
+                        id: 'tl-dispatch-' + Date.now(),
+                        status: 'Dispatched',
+                        timestamp: res.dispatchedAt,
+                        title: `Forwarded to ${res.shortDept || res.department}`,
+                        description: `Auto-dispatched formal grievance notice to ${res.recipientSummary}.`,
+                        actor: 'CivicFix Dispatch Engine',
+                        role: 'System'
+                      }
+                    ]
+                  };
+                  createIssueInBackend(updated);
+                  return updated;
+                }
+                return i;
+              })
+            );
+            addToast(`Complaint automatically dispatched to ${res.shortDept || res.department}`, 'info');
+          } else {
+            setIssues((prev) =>
+              prev.map((i) => (i.id === createdIssue.id ? { ...i, dispatchStatus: 'Failed' } : i))
+            );
+          }
+        })
+        .catch((err) => {
+          console.warn('Auto-dispatch notice:', err);
+        });
     }
 
     awardKarma('report', 50);
     return createdIssue;
+  };
+
+  // Manual Dispatch / Forward via Email (Admin or Citizen Trigger)
+  const forwardIssueEmail = async (issueId, customRecipient = null) => {
+    const target = issues.find((i) => i.id === issueId);
+    if (!target) {
+      addToast('Error: Grievance not found.', 'error');
+      return { success: false, error: 'Issue not found' };
+    }
+
+    addToast(`Dispatching formal complaint for ${target.ticketId}...`, 'info');
+    try {
+      const res = await dispatchIssueEmail(target, customRecipient);
+      if (res?.success) {
+        setIssues((prev) =>
+          prev.map((i) => {
+            if (i.id === issueId) {
+              const updated = {
+                ...i,
+                dispatchStatus: 'Dispatched',
+                dispatchedAt: res.dispatchedAt,
+                dispatchedTo: res.recipientSummary,
+                dispatchDepartment: res.department,
+                timeline: [
+                  ...(i.timeline || []),
+                  {
+                    id: 'tl-fwd-' + Date.now(),
+                    status: 'Dispatched',
+                    timestamp: res.dispatchedAt,
+                    title: `Dispatched to ${res.shortDept || res.department}`,
+                    description: `Municipal notice forwarded via email to ${res.recipientSummary}.`,
+                    actor: role === 'admin' ? 'Municipal Officer' : 'Civic Member',
+                    role: role === 'admin' ? 'Admin' : 'Citizen'
+                  }
+                ]
+              };
+              updateIssueInBackend(issueId, updated);
+              return updated;
+            }
+            return i;
+          })
+        );
+        addToast(
+          `Dispatched ${target.ticketId} to ${res.shortDept || res.department} (${res.recipientSummary})`,
+          'success'
+        );
+        return res;
+      } else {
+        setIssues((prev) =>
+          prev.map((i) => (i.id === issueId ? { ...i, dispatchStatus: 'Failed' } : i))
+        );
+        addToast(`Email dispatch failed: ${res?.error || 'Unknown error'}`, 'error');
+        return res;
+      }
+    } catch (err) {
+      addToast(`Email dispatch exception: ${err.message}`, 'error');
+      return { success: false, error: err.message };
+    }
   };
 
   // Upvote issue
@@ -751,6 +857,7 @@ export function CivicProvider({ children }) {
         filter,
         setFilter,
         addIssue,
+        forwardIssueEmail,
         upvoteIssue,
         addComment,
         updateIssueStatus,

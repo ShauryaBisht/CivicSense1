@@ -23,6 +23,10 @@ export function toDbIssue(issue) {
     timeline: issue.timeline || [],
     comments: issue.comments || [],
     triage_metadata: issue.triageMetadata || {},
+    dispatch_status: issue.dispatchStatus || 'Pending',
+    dispatched_at: issue.dispatchedAt || null,
+    dispatched_to: issue.dispatchedTo || null,
+    dispatch_department: issue.dispatchDepartment || null,
     feedback: issue.feedback || null,
     reported_at: issue.reportedAt || new Date().toISOString(),
     updated_at: issue.updatedAt || new Date().toISOString()
@@ -65,6 +69,10 @@ export function fromDbIssue(row) {
     timeline: Array.isArray(row.timeline) ? row.timeline : [],
     comments: Array.isArray(row.comments) ? row.comments : [],
     triageMetadata: row.triage_metadata || row.triageMetadata || {},
+    dispatchStatus: row.dispatch_status || row.dispatchStatus || 'Pending',
+    dispatchedAt: row.dispatched_at || row.dispatchedAt || null,
+    dispatchedTo: row.dispatched_to || row.dispatchedTo || null,
+    dispatchDepartment: row.dispatch_department || row.dispatchDepartment || null,
     feedback: row.feedback,
     reportedAt: row.reported_at || row.reportedAt || new Date().toISOString(),
     updatedAt: row.updated_at || row.updatedAt || new Date().toISOString()
